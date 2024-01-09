@@ -1,5 +1,3 @@
-Release 1.0.0 (2024-01-XX)
+Release 1.0.0 (2023-11-08)
 --------------------------
-Add support for Kinesis output as (#2) 
-Add support for EventBridge output (#3)
-
+OpenSnowcat Release 1.0.0 from Snowplow 2.10.0 
