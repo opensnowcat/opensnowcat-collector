@@ -1,0 +1,9 @@
+OpenSnowcat (https://www.opensnowcat.io/)
+Copyright OpenSnowcat Contributors
+
+This product includes software developed by
+Snowplow Ltd. (http://snowplow.io).
+Copyright 2009-2024 Snowplow Ltd.
+
+This product includes software developed by The Apache Software
+Foundation (http://www.apache.org/).
