@@ -1,7 +1,9 @@
 # OpenSnowcat Scala Stream Collector
-[![Build Status][build-image]][build-wf]
-[![Release][release-image]][releases]
+![GitHub Release](https://img.shields.io/github/v/release/opensnowcat/opensnowcat-enrich)
+[![main](https://github.com/opensnowcat/opensnowcat-collector/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/opensnowcat/opensnowcat-collector/actions/workflows/test.yml)
 [![License][license-image]][license]
+
+
 
 ## Welcome
 
@@ -33,7 +35,6 @@ Copyright OpenSnowcat Contributors. See [NOTICE](NOTICE.txt) for details.
 
 OpenSnowcat includes certain Apache-licensed Snowplow code from Snowplow Ltd. and other source code. Snowplow Ltd. is not the source of that other source code. SNOWPLOW is a registered trademark of Snowplow Ltd.
 
-[releases]: https://github.com/opensnowcat/opensnowcat-collector
-[build-wf]: https://github.com/opensnowcat/opensnowcat-collector/actions?query=workflow%3Abuild
+
 [license-image]: http://img.shields.io/badge/license-Apache--2-blue.svg?style=flat
 [license]: http://www.apache.org/licenses/LICENSE-2.0
