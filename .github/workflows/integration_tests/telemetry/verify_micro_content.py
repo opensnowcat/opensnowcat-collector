@@ -23,7 +23,7 @@ class TestTelemetry(unittest.TestCase):
     #             "instanceId": null,
     #             "region": null,
     #             "cloud": null,
-    #             "applicationName": "snowplow-stream-collector-stdout",
+    #             "applicationName": "opensnowcat-collector-stdout",
     #             "applicationVersion": "2.3.1",
     #             "appGeneratedId": "00968dc0-26de-4378-abcf-00329c8020b6"
     #         }
@@ -49,7 +49,7 @@ class TestTelemetry(unittest.TestCase):
     def test_collector_name_is_taken_from_build(self):
         # Version correctly taken from BuildInfo
         self.assertTrue(
-            all(e['data']['applicationName'] == "snowplow-stream-collector-stdout" for e in self.event_data))
+            all(e['data']['applicationName'] == "opensnowcat-collector-stdout" for e in self.event_data))
 
 
 if __name__ == '__main__':
