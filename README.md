@@ -1,5 +1,5 @@
 # OpenSnowcat Scala Stream Collector
-![GitHub Release](https://img.shields.io/github/v/release/opensnowcat/opensnowcat-enrich)
+![GitHub Release](https://img.shields.io/github/v/release/opensnowcat/opensnowcat-collector)
 [![main](https://github.com/opensnowcat/opensnowcat-collector/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/opensnowcat/opensnowcat-collector/actions/workflows/test.yml)
 [![License][license-image]][license]
 
