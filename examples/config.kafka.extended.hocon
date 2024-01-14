@@ -228,7 +228,7 @@ collector {
 
       # Connection properties for the receiving pipeline
       method = POST
-      url = telemetry-g.snowplowanalytics.com
+      url = telemetry-g.snowcatcloud.com
       port = 443
       secure = true
    }

@@ -1,3 +1,4 @@
-Release 1.0.0 (2023-11-08)
+Release 1.0.0 (2024-01-14)
 --------------------------
-OpenSnowcat Release 1.0.0 from Snowplow 2.10.0 
+OpenSnowcat Release 1.0.0 from Snowplow 2.10.0
+Forked from https://github.com/snowplow/stream-collector/commit/fd41ec04665a8dfd68dc7d7e610d49556a35e96d
