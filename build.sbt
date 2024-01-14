@@ -87,7 +87,7 @@ lazy val scalifiedSettings = Seq(
 
 lazy val buildSettings = Seq(
   organization := "com.snowplowanalytics",
-  name := "snowplow-stream-collector",
+  name := "opensnowcat-collector",
   description := "Scala Stream Collector for Snowplow raw events",
   scalaVersion := "2.12.10",
   javacOptions := Seq("-source", "11", "-target", "11"),
@@ -112,7 +112,7 @@ lazy val root = project
   .aggregate(core, kinesis, pubsub, kafka, nsq, stdout, sqs, rabbitmq)
 
 lazy val core = project
-  .settings(moduleName := "snowplow-stream-collector-core")
+  .settings(moduleName := "opensnowcat-collector-core")
   .settings(buildSettings ++ BuildSettings.sbtAssemblySettings)
   .settings(libraryDependencies ++= commonDependencies)
   .settings(excludeDependencies ++= commonExclusions)
@@ -121,7 +121,7 @@ lazy val core = project
 
 lazy val kinesisSettings =
   allSettings ++ buildInfoSettings ++ Defaults.itSettings ++ scalifiedSettings ++ Seq(
-    moduleName := "snowplow-stream-collector-kinesis",
+    moduleName := "opensnowcat-collector-kinesis",
     Docker / packageName := "scala-stream-collector-kinesis",
     libraryDependencies ++= Seq(
       Dependencies.Libraries.kinesis,
@@ -151,7 +151,7 @@ lazy val kinesisDistroless = project
 
 lazy val sqsSettings =
   allSettings ++ buildInfoSettings ++ Seq(
-    moduleName := "snowplow-stream-collector-sqs",
+    moduleName := "opensnowcat-collector-sqs",
     Docker / packageName := "scala-stream-collector-sqs",
     libraryDependencies ++= Seq(
       Dependencies.Libraries.sqs,
@@ -173,7 +173,7 @@ lazy val sqsDistroless = project
 
 lazy val pubsubSettings =
   allSettings ++ buildInfoSettings ++ Defaults.itSettings ++ scalifiedSettings ++ Seq(
-    moduleName := "snowplow-stream-collector-google-pubsub",
+    moduleName := "opensnowcat-collector-google-pubsub",
     Docker / packageName := "scala-stream-collector-pubsub",
     libraryDependencies ++= Seq(
       Dependencies.Libraries.pubsub,
@@ -202,7 +202,7 @@ lazy val pubsubDistroless = project
 
 lazy val kafkaSettings =
   allSettings ++ buildInfoSettings ++ Seq(
-    moduleName := "snowplow-stream-collector-kafka",
+    moduleName := "opensnowcat-collector-kafka",
     Docker / packageName := "scala-stream-collector-kafka",
     libraryDependencies ++= Seq(Dependencies.Libraries.kafkaClients, Dependencies.Libraries.mskAuth)
   )
@@ -221,7 +221,7 @@ lazy val kafkaDistroless = project
 
 lazy val nsqSettings =
   allSettings ++ buildInfoSettings ++ Seq(
-    moduleName := "snowplow-stream-collector-nsq",
+    moduleName := "opensnowcat-collector-nsq",
     Docker / packageName := "scala-stream-collector-nsq",
     libraryDependencies ++= Seq(
       Dependencies.Libraries.nsqClient,
@@ -244,7 +244,7 @@ lazy val nsqDistroless = project
 
 lazy val stdoutSettings =
   allSettings ++ buildInfoSettings ++ Seq(
-    moduleName := "snowplow-stream-collector-stdout",
+    moduleName := "opensnowcat-collector-stdout",
     Docker / packageName := "scala-stream-collector-stdout"
   )
 
@@ -262,7 +262,7 @@ lazy val stdoutDistroless = project
 
 lazy val rabbitmqSettings =
   allSettings ++ buildInfoSettings ++ Seq(
-    moduleName := "snowplow-stream-collector-rabbitmq",
+    moduleName := "opensnowcat-collector-rabbitmq",
     Docker / packageName := "scala-stream-collector-rabbitmq-experimental",
     libraryDependencies ++= Seq(Dependencies.Libraries.rabbitMQ)
   )
