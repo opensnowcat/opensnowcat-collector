@@ -35,7 +35,7 @@ object Dependencies {
     val config      = "1.4.3"
     val rabbitMQ    = "5.15.0"
     val jackson     = "2.12.7" // force this version to mitigate security vulnerabilities
-    val thrift      = "0.15.0" // force this version to mitigate security vulnerabilities
+    val thrift      = "0.19.0" // force this version to mitigate security vulnerabilities
     val jnrUnixsock = "0.38.21" // force this version to mitigate security vulnerabilities
     val protobuf    = "3.21.7" // force this version to mitigate security vulnerabilities
     // Scala
