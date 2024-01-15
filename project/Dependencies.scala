@@ -24,20 +24,20 @@ object Dependencies {
 
   object V {
     // Java
-    val awsSdk       = "1.12.327"
-    val pubsub       = "1.119.1"
-    val kafka        = "2.2.1"
-    val mskAuth      = "1.1.1"
-    val nsqClient    = "1.3.0"
-    val jodaTime     = "2.10.13"
-    val slf4j        = "1.7.32"
-    val log4j        = "2.17.2" // CVE-2021-44228
-    val config       = "1.4.1"
-    val rabbitMQ     = "5.15.0"
-    val jackson      = "2.12.7" // force this version to mitigate security vulnerabilities
-    val thrift       = "0.15.0" // force this version to mitigate security vulnerabilities
-    val jnrUnixsock  = "0.38.17" // force this version to mitigate security vulnerabilities
-    val protobuf     = "3.21.7" // force this version to mitigate security vulnerabilities
+    val awsSdk      = "1.12.637"
+    val pubsub      = "1.119.1"
+    val kafka       = "2.2.1"
+    val mskAuth     = "1.1.1"
+    val nsqClient   = "1.3.0"
+    val jodaTime    = "2.10.13"
+    val slf4j       = "1.7.32"
+    val log4j       = "2.17.2" // CVE-2021-44228
+    val config      = "1.4.1"
+    val rabbitMQ    = "5.15.0"
+    val jackson     = "2.12.7" // force this version to mitigate security vulnerabilities
+    val thrift      = "0.15.0" // force this version to mitigate security vulnerabilities
+    val jnrUnixsock = "0.38.17" // force this version to mitigate security vulnerabilities
+    val protobuf    = "3.21.7" // force this version to mitigate security vulnerabilities
     // Scala
     val collectorPayload = "0.0.0"
     val tracker          = "1.0.0"
@@ -57,23 +57,23 @@ object Dependencies {
 
   object Libraries {
     // Java
-    val jackson        = "com.fasterxml.jackson.core"       % "jackson-databind"        % V.jackson // nsq only
-    val thrift         = "org.apache.thrift"                % "libthrift"               % V.thrift
-    val kinesis        = "com.amazonaws"                    % "aws-java-sdk-kinesis"    % V.awsSdk
-    val sqs            = "com.amazonaws"                    % "aws-java-sdk-sqs"        % V.awsSdk
-    val sts            = "com.amazonaws"                    % "aws-java-sdk-sts"        % V.awsSdk % Runtime // Enables web token authentication https://github.com/snowplow/stream-collector/issues/169
-    val pubsub         = "com.google.cloud"                 % "google-cloud-pubsub"     % V.pubsub
-    val kafkaClients   = "org.apache.kafka"                 % "kafka-clients"           % V.kafka
-    val mskAuth        = "software.amazon.msk"              % "aws-msk-iam-auth"        % V.mskAuth % Runtime // Enables AWS MSK IAM authentication https://github.com/snowplow/stream-collector/pull/214
-    val nsqClient      = "com.snowplowanalytics"            % "nsq-java-client"         % V.nsqClient
-    val jodaTime       = "joda-time"                        % "joda-time"               % V.jodaTime
-    val slf4j          = "org.slf4j"                        % "slf4j-simple"            % V.slf4j
-    val log4jOverSlf4j = "org.slf4j"                        % "log4j-over-slf4j"        % V.slf4j
-    val log4j          = "org.apache.logging.log4j"         % "log4j-core"              % V.log4j
-    val config         = "com.typesafe"                     % "config"                  % V.config
-    val jnrUnixsocket  = "com.github.jnr"                   % "jnr-unixsocket"          % V.jnrUnixsock
-    val rabbitMQ       = "com.rabbitmq"                     % "amqp-client"             % V.rabbitMQ
-    val protobuf       = "com.google.protobuf"              % "protobuf-java"           % V.protobuf
+    val jackson        = "com.fasterxml.jackson.core" % "jackson-databind"     % V.jackson // nsq only
+    val thrift         = "org.apache.thrift"          % "libthrift"            % V.thrift
+    val kinesis        = "com.amazonaws"              % "aws-java-sdk-kinesis" % V.awsSdk
+    val sqs            = "com.amazonaws"              % "aws-java-sdk-sqs"     % V.awsSdk
+    val sts            = "com.amazonaws"              % "aws-java-sdk-sts"     % V.awsSdk % Runtime // Enables web token authentication https://github.com/snowplow/stream-collector/issues/169
+    val pubsub         = "com.google.cloud"           % "google-cloud-pubsub"  % V.pubsub
+    val kafkaClients   = "org.apache.kafka"           % "kafka-clients"        % V.kafka
+    val mskAuth        = "software.amazon.msk"        % "aws-msk-iam-auth"     % V.mskAuth % Runtime // Enables AWS MSK IAM authentication https://github.com/snowplow/stream-collector/pull/214
+    val nsqClient      = "com.snowplowanalytics"      % "nsq-java-client"      % V.nsqClient
+    val jodaTime       = "joda-time"                  % "joda-time"            % V.jodaTime
+    val slf4j          = "org.slf4j"                  % "slf4j-simple"         % V.slf4j
+    val log4jOverSlf4j = "org.slf4j"                  % "log4j-over-slf4j"     % V.slf4j
+    val log4j          = "org.apache.logging.log4j"   % "log4j-core"           % V.log4j
+    val config         = "com.typesafe"               % "config"               % V.config
+    val jnrUnixsocket  = "com.github.jnr"             % "jnr-unixsocket"       % V.jnrUnixsock
+    val rabbitMQ       = "com.rabbitmq"               % "amqp-client"          % V.rabbitMQ
+    val protobuf       = "com.google.protobuf"        % "protobuf-java"        % V.protobuf
 
     // Scala
     val collectorPayload = "com.snowplowanalytics" % "collector-payload-1"                % V.collectorPayload
@@ -88,14 +88,14 @@ object Dependencies {
     val akkaHttpMetrics  = "fr.davit"              %% "akka-http-metrics-datadog"         % V.akkaHttpMetrics
 
     // Scala (test only)
-    val specs2            = "org.specs2"        %% "specs2-core"                   % V.specs2         % Test
-    val specs2It          = "org.specs2"        %% "specs2-core"                   % V.specs2         % IntegrationTest
-    val specs2CEIt        = "com.codecommit"    %% "cats-effect-testing-specs2"    % V.specs2CE       % IntegrationTest
-    val testcontainersIt  = "com.dimafeng"      %% "testcontainers-scala-core"     % V.testcontainers % IntegrationTest
-    val catsRetryIt       = "com.github.cb372"  %% "cats-retry"                    % V.catsRetry      % IntegrationTest
-    val http4sClientIt    = "org.http4s"        %% "http4s-blaze-client"           % V.http4s         % IntegrationTest
-    val akkaTestkit       = "com.typesafe.akka" %% "akka-testkit"                  % V.akka           % Test
-    val akkaHttpTestkit   = "com.typesafe.akka" %% "akka-http-testkit"             % V.akkaHttp       % Test
-    val akkaStreamTestkit = "com.typesafe.akka" %% "akka-stream-testkit"           % V.akka           % Test
+    val specs2            = "org.specs2"        %% "specs2-core"                % V.specs2         % Test
+    val specs2It          = "org.specs2"        %% "specs2-core"                % V.specs2         % IntegrationTest
+    val specs2CEIt        = "com.codecommit"    %% "cats-effect-testing-specs2" % V.specs2CE       % IntegrationTest
+    val testcontainersIt  = "com.dimafeng"      %% "testcontainers-scala-core"  % V.testcontainers % IntegrationTest
+    val catsRetryIt       = "com.github.cb372"  %% "cats-retry"                 % V.catsRetry      % IntegrationTest
+    val http4sClientIt    = "org.http4s"        %% "http4s-blaze-client"        % V.http4s         % IntegrationTest
+    val akkaTestkit       = "com.typesafe.akka" %% "akka-testkit"               % V.akka           % Test
+    val akkaHttpTestkit   = "com.typesafe.akka" %% "akka-http-testkit"          % V.akkaHttp       % Test
+    val akkaStreamTestkit = "com.typesafe.akka" %% "akka-stream-testkit"        % V.akka           % Test
   }
 }
