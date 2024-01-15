@@ -43,7 +43,7 @@ object Dependencies {
     val tracker          = "1.0.0"
     val akkaHttp         = "10.2.7"
     val akka             = "2.6.16"
-    val scopt            = "4.0.1"
+    val scopt            = "4.1.0"
     val pureconfig       = "0.17.2"
     val akkaHttpMetrics  = "1.7.1"
     val badRows          = "2.1.1"
