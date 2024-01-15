@@ -96,7 +96,7 @@ lazy val buildSettings = Seq(
 
 lazy val dynVerSettings = Seq(
   ThisBuild / dynverVTagPrefix := false, // Otherwise git tags required to have v-prefix
-  ThisBuild / dynverSeparator := "-"     // to be compatible with docker
+  ThisBuild / dynverSeparator := "-" // to be compatible with docker
 )
 
 lazy val allSettings = buildSettings ++
@@ -131,7 +131,7 @@ lazy val kinesisSettings =
       Dependencies.Libraries.specs2It,
       Dependencies.Libraries.specs2CEIt
     ),
-    IntegrationTest / test := (IntegrationTest     / test).dependsOn(Docker     / publishLocal).value,
+    IntegrationTest / test := (IntegrationTest / test).dependsOn(Docker / publishLocal).value,
     IntegrationTest / testOnly := (IntegrationTest / testOnly).dependsOn(Docker / publishLocal).evaluated
   )
 
@@ -182,7 +182,7 @@ lazy val pubsubSettings =
       Dependencies.Libraries.specs2It,
       Dependencies.Libraries.specs2CEIt
     ),
-    IntegrationTest / test := (IntegrationTest     / test).dependsOn(Docker     / publishLocal).value,
+    IntegrationTest / test := (IntegrationTest / test).dependsOn(Docker / publishLocal).value,
     IntegrationTest / testOnly := (IntegrationTest / testOnly).dependsOn(Docker / publishLocal).evaluated
   )
 

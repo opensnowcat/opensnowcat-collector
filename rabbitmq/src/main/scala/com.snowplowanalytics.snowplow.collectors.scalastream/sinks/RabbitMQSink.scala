@@ -53,17 +53,16 @@ class RabbitMQSink(
     Future {
       if (currentBackOff.isDefined) Thread.sleep(currentBackOff.get.toMillis)
       channel.basicPublish(exchangeName, "", null, bytes)
-    }.recoverWith {
-      case e =>
-        val nextBackOff =
-          currentBackOff match {
-            case Some(current) =>
-              (backoffPolicy.multiplier * current.toMillis).toLong.min(backoffPolicy.maxBackoff).millis
-            case None =>
-              backoffPolicy.minBackoff.millis
-          }
-        log.error(s"Sending of event failed with error: ${e.getMessage}. Retrying in $nextBackOff")
-        sendOneEvent(bytes, Some(nextBackOff))
+    }.recoverWith { case e =>
+      val nextBackOff =
+        currentBackOff match {
+          case Some(current) =>
+            (backoffPolicy.multiplier * current.toMillis).toLong.min(backoffPolicy.maxBackoff).millis
+          case None =>
+            backoffPolicy.minBackoff.millis
+        }
+      log.error(s"Sending of event failed with error: ${e.getMessage}. Retrying in $nextBackOff")
+      sendOneEvent(bytes, Some(nextBackOff))
     }
 
   override def shutdown(): Unit = ()
