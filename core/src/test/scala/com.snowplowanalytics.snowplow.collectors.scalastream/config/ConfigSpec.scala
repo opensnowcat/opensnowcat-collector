@@ -1,5 +1,4 @@
-/**
-  * Copyright (c) 2014-2022 Snowplow Analytics Ltd.
+/** Copyright (c) 2014-2022 Snowplow Analytics Ltd.
   * All rights reserved.
   *
   * This program is licensed to you under the Apache License Version 2.0,
@@ -30,73 +29,73 @@ abstract class ConfigSpec extends Specification {
 
   def configRefFactory(app: String): CollectorConfig = CollectorConfig(
     interface = "0.0.0.0",
-    port      = 8080,
-    paths     = Map.empty[String, String],
+    port = 8080,
+    paths = Map.empty[String, String],
     p3p = P3PConfig(
       policyRef = "/w3c/p3p.xml",
-      CP        = "NOI DSP COR NID PSA OUR IND COM NAV STA"
+      CP = "NOI DSP COR NID PSA OUR IND COM NAV STA"
     ),
     crossDomain = CrossDomainConfig(
       enabled = false,
       domains = List("*"),
-      secure  = true
+      secure = true
     ),
     cookie = CookieConfig(
-      enabled        = true,
-      expiration     = 365.days,
-      name           = "sp",
-      domains        = None,
+      enabled = true,
+      expiration = 365.days,
+      name = "sp",
+      domains = None,
       fallbackDomain = None,
-      secure         = true,
-      httpOnly       = true,
-      sameSite       = Some("None")
+      secure = true,
+      httpOnly = true,
+      sameSite = Some("None")
     ),
     doNotTrackCookie = DoNotTrackCookieConfig(
       enabled = false,
-      name    = "",
-      value   = ""
+      name = "",
+      value = ""
     ),
     cookieBounce = CookieBounceConfig(
-      enabled                 = false,
-      name                    = "n3pc",
-      fallbackNetworkUserId   = "00000000-0000-4000-A000-000000000000",
+      enabled = false,
+      name = "n3pc",
+      fallbackNetworkUserId = "00000000-0000-4000-A000-000000000000",
       forwardedProtocolHeader = None
     ),
     redirectMacro = RedirectMacroConfig(
-      enabled     = false,
+      enabled = false,
       placeholder = None
     ),
     rootResponse = RootResponseConfig(
-      enabled    = false,
+      enabled = false,
       statusCode = 302,
-      headers    = Map.empty[String, String],
-      body       = ""
+      headers = Map.empty[String, String],
+      body = ""
     ),
-    cors                    = CORSConfig(60.minutes),
-    monitoring              = MonitoringConfig(MetricsConfig(StatsdConfig(false, "localhost", 8125, 10.seconds))),
-    telemetry               = Some(TelemetryConfig()),
-    ssl                     = SSLConfig(enable = false, redirect = false, port = 443),
-    enableDefaultRedirect   = false,
-    redirectDomains         = Set.empty,
-    terminationDeadline     = 10.seconds,
-    preTerminationPeriod    = 10.seconds,
+    cors = CORSConfig(60.minutes),
+    monitoring = MonitoringConfig(MetricsConfig(StatsdConfig(false, "localhost", 8125, 10.seconds))),
+    telemetry = Some(TelemetryConfig()),
+    ssl = SSLConfig(enable = false, redirect = false, port = 443),
+    enableDefaultRedirect = false,
+    redirectDomains = Set.empty,
+    terminationDeadline = 10.seconds,
+    preTerminationPeriod = 10.seconds,
     preTerminationUnhealthy = false,
     streams = StreamsConfig(
-      good                       = "good",
-      bad                        = "bad",
+      good = "good",
+      bad = "bad",
       useIpAddressAsPartitionKey = false,
       buffer =
         if (app == "pubsub")
           BufferConfig(
-            byteLimit   = 100000,
+            byteLimit = 100000,
             recordLimit = 40,
-            timeLimit   = 1000
+            timeLimit = 1000
           )
         else
           BufferConfig(
-            byteLimit   = 3145728,
+            byteLimit = 3145728,
             recordLimit = 500,
-            timeLimit   = 5000
+            timeLimit = 5000
           ),
       sink = sinkConfigRefFactory(app)
     ),
@@ -104,29 +103,29 @@ abstract class ConfigSpec extends Specification {
   )
 
   def sinkConfigRefFactory(app: String): SinkConfig = app match {
-    case "nsq"   => Nsq(maxBytes   = 1000000, "nsqHost", 4150)
+    case "nsq"   => Nsq(maxBytes = 1000000, "nsqHost", 4150)
     case "kafka" => Kafka(maxBytes = 1000000, "localhost:9092,another.host:9092", 10, None)
     case "pubsub" =>
       GooglePubSub(
-        maxBytes        = 10000000,
+        maxBytes = 10000000,
         googleProjectId = "google-project-id",
         backoffPolicy = GooglePubSubBackoffPolicyConfig(
-          minBackoff           = 1000,
-          maxBackoff           = 1000,
-          totalBackoff         = 9223372036854L,
-          multiplier           = 2,
-          initialRpcTimeout    = 10000,
-          maxRpcTimeout        = 10000,
+          minBackoff = 1000,
+          maxBackoff = 1000,
+          totalBackoff = 9223372036854L,
+          multiplier = 2,
+          initialRpcTimeout = 10000,
+          maxRpcTimeout = 10000,
           rpcTimeoutMultiplier = 2
         ),
         startupCheckInterval = 1.second,
-        retryInterval        = 10.seconds,
-        gcpUserAgent         = GcpUserAgent(productName = "Snowplow OSS")
+        retryInterval = 10.seconds,
+        gcpUserAgent = GcpUserAgent(productName = "Snowplow OSS")
       )
     case "sqs" =>
       Sqs(
-        maxBytes       = 192000,
-        region         = "eu-central-1",
+        maxBytes = 192000,
+        region = "eu-central-1",
         threadPoolSize = 10,
         aws = AWSConfig(
           accessKey = "iam",
@@ -142,8 +141,8 @@ abstract class ConfigSpec extends Specification {
     case "stdout" => Stdout(maxBytes = 1000000000)
     case "kinesis" =>
       Kinesis(
-        maxBytes       = 1000000,
-        region         = "eu-central-1",
+        maxBytes = 1000000,
+        region = "eu-central-1",
         threadPoolSize = 10,
         aws = AWSConfig(
           accessKey = "iam",
@@ -154,10 +153,10 @@ abstract class ConfigSpec extends Specification {
           maxBackoff = 1500,
           maxRetries = 3
         ),
-        sqsBadBuffer         = None,
-        sqsGoodBuffer        = None,
-        sqsMaxBytes          = 192000,
-        customEndpoint       = None,
+        sqsBadBuffer = None,
+        sqsGoodBuffer = None,
+        sqsMaxBytes = 192000,
+        customEndpoint = None,
         startupCheckInterval = 1.second
       )
   }
@@ -171,14 +170,13 @@ abstract class ConfigSpec extends Specification {
 
     "Config.parseConfig" >> Fragment.foreach(
       Seq(("minimal", app), ("extended", app))
-    ) {
-      case (suffix, app) =>
-        s"accept example $suffix $app config" >> {
-          val config      = Paths.get(getClass.getResource(s"/config.$app.$suffix.hocon").toURI)
-          val argv        = Array("--config", config.toString)
-          val (result, _) = stubCollector.parseConfig(argv)
-          (result must be).equalTo(configRefFactory(app))
-        }
+    ) { case (suffix, app) =>
+      s"accept example $suffix $app config" >> {
+        val config      = Paths.get(getClass.getResource(s"/config.$app.$suffix.hocon").toURI)
+        val argv        = Array("--config", config.toString)
+        val (result, _) = stubCollector.parseConfig(argv)
+        (result must be).equalTo(configRefFactory(app))
+      }
     }
   }
 }

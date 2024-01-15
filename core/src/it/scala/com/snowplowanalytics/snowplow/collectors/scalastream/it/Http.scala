@@ -26,14 +26,14 @@ import org.http4s.client.blaze.BlazeClientBuilder
 
 object Http {
 
-  private val executionContext = ExecutionContext.global
+  private val executionContext                  = ExecutionContext.global
   implicit val ioContextShift: ContextShift[IO] = IO.contextShift(executionContext)
 
   def statuses(requests: List[Request[IO]]): IO[List[Status]] =
-    mkClient.use { client => requests.traverse(client.status) }
+    mkClient.use(client => requests.traverse(client.status))
 
   def status(request: Request[IO]): IO[Status] =
-    mkClient.use { client => client.status(request) }
+    mkClient.use(client => client.status(request))
 
   def response(request: Request[IO]): IO[Response[IO]] =
     mkClient.use(c => c.run(request).use(resp => IO.pure(resp)))

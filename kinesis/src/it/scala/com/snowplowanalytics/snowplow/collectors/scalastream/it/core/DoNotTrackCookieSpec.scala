@@ -34,72 +34,76 @@ class DoNotTrackCookieSpec extends Specification with Localstack with CatsIO {
   override protected val Timeout = 5.minutes
 
   "collector" should {
-    val cookieName = "foo"
+    val cookieName  = "foo"
     val cookieValue = "bar"
 
     "ignore events that have a cookie whose name and value match doNotTrackCookie config if enabled" in {
-      val testName = "doNotTrackCookie-enabled"
+      val testName   = "doNotTrackCookie-enabled"
       val streamGood = s"${testName}-raw"
-      val streamBad = s"${testName}-bad-1"
+      val streamBad  = s"${testName}-bad-1"
 
-      Collector.container(
-        "kinesis/src/it/resources/collector.hocon",
-        testName,
-        streamGood,
-        streamBad,
-        additionalConfig = Some(mkConfig(true, cookieName, cookieValue))
-      ).use { collector =>
-        val requests = List(
-          EventGenerator.mkTp2Event(collector.host, collector.port).addCookie(cookieName, cookieName),
-          EventGenerator.mkTp2Event(collector.host, collector.port).addCookie(cookieValue, cookieValue),
-          EventGenerator.mkTp2Event(collector.host, collector.port).addCookie(cookieName, cookieValue)
+      Collector
+        .container(
+          "kinesis/src/it/resources/collector.hocon",
+          testName,
+          streamGood,
+          streamBad,
+          additionalConfig = Some(mkConfig(true, cookieName, cookieValue))
         )
+        .use { collector =>
+          val requests = List(
+            EventGenerator.mkTp2Event(collector.host, collector.port).addCookie(cookieName, cookieName),
+            EventGenerator.mkTp2Event(collector.host, collector.port).addCookie(cookieValue, cookieValue),
+            EventGenerator.mkTp2Event(collector.host, collector.port).addCookie(cookieName, cookieValue)
+          )
 
-        val expected = List(s"Cookie: $cookieName=$cookieName", s"Cookie: $cookieValue=$cookieValue")
+          val expected = List(s"Cookie: $cookieName=$cookieName", s"Cookie: $cookieValue=$cookieValue")
 
-        for {
-          statuses <- Http.statuses(requests)
-          _ <- IO.sleep(5.second)
-          collectorOutput <- Kinesis.readOutput(streamGood, streamBad)
-          headers = collectorOutput.good.map(_.headers.asScala)
-        } yield {
-          statuses.map(_.code) must beEqualTo(List(200, 200, 200))
-          headers must haveSize(2)
-          expected.forall(cookie => headers.exists(_.contains(cookie))) must beTrue
+          for {
+            statuses        <- Http.statuses(requests)
+            _               <- IO.sleep(5.second)
+            collectorOutput <- Kinesis.readOutput(streamGood, streamBad)
+            headers = collectorOutput.good.map(_.headers.asScala)
+          } yield {
+            statuses.map(_.code) must beEqualTo(List(200, 200, 200))
+            headers must haveSize(2)
+            expected.forall(cookie => headers.exists(_.contains(cookie))) must beTrue
+          }
         }
-      }
     }
 
     "track events that have a cookie whose name and value match doNotTrackCookie config if disabled" in {
-      val testName = "doNotTrackCookie-disabled"
+      val testName   = "doNotTrackCookie-disabled"
       val streamGood = s"${testName}-raw"
-      val streamBad = s"${testName}-bad-1"
+      val streamBad  = s"${testName}-bad-1"
 
-      Collector.container(
-        "kinesis/src/it/resources/collector.hocon",
-        testName,
-        streamGood,
-        streamBad,
-        additionalConfig = Some(mkConfig(false, cookieName, cookieValue))
-      ).use { collector =>
-        val request = EventGenerator.mkTp2Event(collector.host, collector.port).addCookie(cookieName, cookieValue)
+      Collector
+        .container(
+          "kinesis/src/it/resources/collector.hocon",
+          testName,
+          streamGood,
+          streamBad,
+          additionalConfig = Some(mkConfig(false, cookieName, cookieValue))
+        )
+        .use { collector =>
+          val request = EventGenerator.mkTp2Event(collector.host, collector.port).addCookie(cookieName, cookieValue)
 
-        val expected = s"Cookie: $cookieName=$cookieValue"
+          val expected = s"Cookie: $cookieName=$cookieValue"
 
-        for {
-          status <- Http.status(request)
-          _ <- IO.sleep(5.second)
-          collectorOutput <- Kinesis.readOutput(streamGood, streamBad)
-          headers = collectorOutput.good.map(_.headers.asScala)
-        } yield {
-          status.code must beEqualTo(200)
-          headers match {
-            case List(one) if one.contains(expected) => ok
-            case other =>
-              ko(s"$other is not one list that contains [$expected]")
+          for {
+            status          <- Http.status(request)
+            _               <- IO.sleep(5.second)
+            collectorOutput <- Kinesis.readOutput(streamGood, streamBad)
+            headers = collectorOutput.good.map(_.headers.asScala)
+          } yield {
+            status.code must beEqualTo(200)
+            headers match {
+              case List(one) if one.contains(expected) => ok
+              case other =>
+                ko(s"$other is not one list that contains [$expected]")
+            }
           }
         }
-      }
     }
   }
 

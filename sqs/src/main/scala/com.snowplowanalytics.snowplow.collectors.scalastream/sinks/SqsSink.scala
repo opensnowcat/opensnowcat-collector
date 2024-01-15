@@ -98,8 +98,7 @@ class SqsSink private (
 
     def getLastFlushTime: Long = lastFlushedTime
 
-    /**
-      * Recursively schedule a task to send everything in EventStorage.
+    /** Recursively schedule a task to send everything in EventStorage.
       * Even if the incoming event flow dries up, all stored events will eventually get sent.
       * Whenever TimeThreshold milliseconds have passed since the last call to flush, call flush.
       * @param interval When to schedule the next flush
@@ -135,12 +134,11 @@ class SqsSink private (
           log.info(s"Successfully wrote ${batch.size - s.size} out of ${batch.size} records to SQS queue $queueName")
 
           if (s.nonEmpty) {
-            s.groupBy(_._2.code).foreach {
-              case (errorCode, items) =>
-                val exampleMsg = items.map(_._2.message).find(_.nonEmpty).getOrElse("")
-                log.error(
-                  s"Writing ${items.size} records to SQS queue $queueName failed with error code [$errorCode] and example message: $exampleMsg"
-                )
+            s.groupBy(_._2.code).foreach { case (errorCode, items) =>
+              val exampleMsg = items.map(_._2.message).find(_.nonEmpty).getOrElse("")
+              log.error(
+                s"Writing ${items.size} records to SQS queue $queueName failed with error code [$errorCode] and example message: $exampleMsg"
+              )
             }
             val failedRecords = s.map(_._1)
             handleError(failedRecords, nextBackoff, retriesLeft)
@@ -168,8 +166,7 @@ class SqsSink private (
       scheduleWrite(failedRecords, maxBackoff, maxRetries)
     }
 
-  /**
-    * @return Empty list if all events were successfully inserted;
+  /** @return Empty list if all events were successfully inserted;
     *         otherwise a non-empty list of Events to be retried and the reasons why they failed.
     */
   def writeBatchToSqs(batch: List[Events]): Future[List[(Events, BatchResultErrorInfo)]] =
@@ -228,8 +225,7 @@ class SqsSink private (
     ()
   }
 
-  /**
-    * How long to wait before sending the next request
+  /** How long to wait before sending the next request
     * @param lastBackoff The previous backoff time
     * @return Maximum of two-thirds of lastBackoff and a random number between minBackoff and maxBackoff
     */
@@ -248,7 +244,7 @@ class SqsSink private (
   private def checkSqsHealth(): Unit = {
     val healthRunnable = new Runnable {
       override def run() {
-        while (!sqsHealthy) {
+        while (!sqsHealthy)
           Try {
             client.getQueueUrl(queueName)
           } match {
@@ -259,7 +255,6 @@ class SqsSink private (
               log.error(s"SQS queue $queueName doesn't exist. Error: ${err.getMessage()}")
               Thread.sleep(1000L)
           }
-        }
       }
     }
     executorService.execute(healthRunnable)
@@ -269,8 +264,7 @@ class SqsSink private (
 /** SqsSink companion object with factory method */
 object SqsSink {
 
-  /**
-    * Events to be written to SQS.
+  /** Events to be written to SQS.
     * @param payloads Serialized events extracted from a CollectorPayload.
     *                 The size of this collection is limited by MaxBytes.
     *                 Not to be confused with a 'batch' events to sink.
@@ -281,8 +275,7 @@ object SqsSink {
   // Details about why messages failed to be written to SQS.
   final case class BatchResultErrorInfo(code: String, message: String)
 
-  /**
-    * Create an SqsSink and schedule a task to flush its EventStorage.
+  /** Create an SqsSink and schedule a task to flush its EventStorage.
     * Exists so that no threads can get a reference to the SqsSink
     * during its construction.
     */

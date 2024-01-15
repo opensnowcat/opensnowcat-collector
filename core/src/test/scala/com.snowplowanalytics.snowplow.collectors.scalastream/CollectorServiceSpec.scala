@@ -323,7 +323,7 @@ class CollectorServiceSpec extends Specification {
         service.flashCrossDomainPolicy(CrossDomainConfig(true, List.empty, false)) shouldEqual HttpResponse(
           entity = HttpEntity(
             contentType = ContentType(MediaTypes.`text/xml`, HttpCharsets.`ISO-8859-1`),
-            string      = "<?xml version=\"1.0\"?>\n<cross-domain-policy>\n\n</cross-domain-policy>"
+            string = "<?xml version=\"1.0\"?>\n<cross-domain-policy>\n\n</cross-domain-policy>"
           )
         )
       }
@@ -335,7 +335,9 @@ class CollectorServiceSpec extends Specification {
 
     "rootResponse" in {
       "return the configured response for root requests" in {
-        service.rootResponse(RootResponseConfig(enabled = true, 302, Map("Location" -> "https://127.0.0.1/"))) shouldEqual HttpResponse(
+        service.rootResponse(
+          RootResponseConfig(enabled = true, 302, Map("Location" -> "https://127.0.0.1/"))
+        ) shouldEqual HttpResponse(
           302,
           collection.immutable.Seq(RawHeader("Location", "https://127.0.0.1/")),
           entity = ""
@@ -604,7 +606,7 @@ class CollectorServiceSpec extends Specification {
           5.seconds,
           Some(List("domain")),
           None,
-          secure   = false,
+          secure = false,
           httpOnly = false,
           sameSite = None
         )
@@ -630,7 +632,7 @@ class CollectorServiceSpec extends Specification {
           5.seconds,
           Some(List("domain")),
           None,
-          secure   = false,
+          secure = false,
           httpOnly = false,
           sameSite = None
         )
@@ -643,7 +645,7 @@ class CollectorServiceSpec extends Specification {
           5.seconds,
           Some(List("domain")),
           None,
-          secure   = false,
+          secure = false,
           httpOnly = false,
           sameSite = None
         )
@@ -657,7 +659,7 @@ class CollectorServiceSpec extends Specification {
           5.seconds,
           Some(List("domain")),
           None,
-          secure   = true,
+          secure = true,
           httpOnly = true,
           sameSite = Some("None")
         )
