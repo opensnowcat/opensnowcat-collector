@@ -51,7 +51,7 @@ object Dependencies {
     val specs2         = "4.20.4"
     val specs2CE       = "0.4.2"
     val testcontainers = "0.40.17"
-    val catsRetry      = "2.1.0"
+    val catsRetry      = "2.1.1"
     val http4s         = "0.21.34"
   }
 
