@@ -1,5 +1,5 @@
 # OpenSnowcat Scala Stream Collector
-![GitHub Release](https://img.shields.io/github/v/release/opensnowcat/opensnowcat-collector)
+![GitHub Release](https://img.shields.io/github/v/release/opensnowcat/opensnowcat-collector?link=https%3A%2F%2Fgithub.com%2Fopensnowcat%2Fopensnowcat-collector%2Freleases)
 [![main](https://github.com/opensnowcat/opensnowcat-collector/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/opensnowcat/opensnowcat-collector/actions/workflows/test.yml)
 [![License][license-image]][license]
 
