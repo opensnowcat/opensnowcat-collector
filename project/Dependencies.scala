@@ -37,7 +37,7 @@ object Dependencies {
     val jackson     = "2.12.7" // force this version to mitigate security vulnerabilities
     val thrift      = "0.15.0" // force this version to mitigate security vulnerabilities
     val jnrUnixsock = "0.38.21" // force this version to mitigate security vulnerabilities
-    val protobuf    = "3.21.7" // force this version to mitigate security vulnerabilities
+    val protobuf    = "3.21.12" // force this version to mitigate security vulnerabilities
     // Scala
     val collectorPayload = "0.0.0"
     val tracker          = "1.0.1"
