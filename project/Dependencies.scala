@@ -26,32 +26,32 @@ object Dependencies {
     // Java
     val awsSdk      = "1.12.637"
     val pubsub      = "1.125.13"
-    val kafka       = "2.2.1"
+    val kafka       = "2.2.2"
     val mskAuth     = "1.1.9"
     val nsqClient   = "1.3.0"
-    val jodaTime    = "2.10.13"
+    val jodaTime    = "2.10.14"
     val slf4j       = "1.7.36"
-    val log4j       = "2.17.2" // CVE-2021-44228
+    val log4j       = "2.22.1" // CVE-2021-44228
     val config      = "1.4.3"
-    val rabbitMQ    = "5.15.0"
+    val rabbitMQ    = "5.20.0"
     val jackson     = "2.12.7" // force this version to mitigate security vulnerabilities
     val thrift      = "0.15.0" // force this version to mitigate security vulnerabilities
     val jnrUnixsock = "0.38.21" // force this version to mitigate security vulnerabilities
-    val protobuf    = "3.21.7" // force this version to mitigate security vulnerabilities
+    val protobuf    = "3.21.12" // force this version to mitigate security vulnerabilities
     // Scala
     val collectorPayload = "0.0.0"
     val tracker          = "1.0.1"
     val akkaHttp         = "10.2.7"
     val akka             = "2.6.16"
     val scopt            = "4.1.0"
-    val pureconfig       = "0.17.2"
+    val pureconfig       = "0.17.4"
     val akkaHttpMetrics  = "1.7.1"
     val badRows          = "2.1.2"
     // Scala (test only)
     val specs2         = "4.20.4"
-    val specs2CE       = "0.4.1"
+    val specs2CE       = "0.4.2"
     val testcontainers = "0.41.0"
-    val catsRetry      = "2.1.0"
+    val catsRetry      = "2.1.1"
     val http4s         = "0.21.34"
   }
 
