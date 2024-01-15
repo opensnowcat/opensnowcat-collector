@@ -31,7 +31,7 @@ object Dependencies {
     val nsqClient   = "1.3.0"
     val jodaTime    = "2.10.14"
     val slf4j       = "1.7.36"
-    val log4j       = "2.17.2" // CVE-2021-44228
+    val log4j       = "2.22.1" // CVE-2021-44228
     val config      = "1.4.3"
     val rabbitMQ    = "5.20.0"
     val jackson     = "2.12.7" // force this version to mitigate security vulnerabilities
