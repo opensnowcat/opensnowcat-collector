@@ -33,7 +33,7 @@ object Dependencies {
     val slf4j       = "1.7.36"
     val log4j       = "2.17.2" // CVE-2021-44228
     val config      = "1.4.3"
-    val rabbitMQ    = "5.15.0"
+    val rabbitMQ    = "5.20.0"
     val jackson     = "2.12.7" // force this version to mitigate security vulnerabilities
     val thrift      = "0.15.0" // force this version to mitigate security vulnerabilities
     val jnrUnixsock = "0.38.21" // force this version to mitigate security vulnerabilities
