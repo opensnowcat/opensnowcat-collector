@@ -46,7 +46,7 @@ class CollectorRouteSpec extends Specification with Specs2RouteTest {
           pixelExpected: Boolean,
           doNotTrack: Boolean,
           contentType: Option[ContentType] = None,
-          spAnonymous: Option[String]      = spAnonymous
+          spAnonymous: Option[String] = spAnonymous
         ): HttpResponse                                            = HttpResponse(200, entity = s"cookie")
         def cookieName: Option[String]                             = Some("name")
         def doNotTrackCookie: Option[DntCookieMatcher]             = None
@@ -141,7 +141,9 @@ class CollectorRouteSpec extends Specification with Specs2RouteTest {
         route.queryString(None) shouldEqual None
       }
       "produce the query string when some of the values are URL encoded" in {
-        route.queryString(Some("/abc/def?schema=iglu%3Acom.acme%2Fcampaign%2Fjsonschema%2F1-0-0&aid=test")) shouldEqual Some(
+        route.queryString(
+          Some("/abc/def?schema=iglu%3Acom.acme%2Fcampaign%2Fjsonschema%2F1-0-0&aid=test")
+        ) shouldEqual Some(
           "schema=iglu%3Acom.acme%2Fcampaign%2Fjsonschema%2F1-0-0&aid=test"
         )
       }
@@ -153,16 +155,16 @@ class CollectorRouteSpec extends Specification with Specs2RouteTest {
           route.cookieIfWanted(Some("abc")) { c =>
             complete(HttpResponse(200, entity = c.toString))
           } ~> check {
-          responseAs[String] shouldEqual "Some(abc=123)"
-        }
+            responseAs[String] shouldEqual "Some(abc=123)"
+          }
       }
       "return none if no cookie name is given" in {
         Get() ~> Cookie("abc" -> "123") ~>
           route.cookieIfWanted(None) { c =>
             complete(HttpResponse(200, entity = c.toString))
           } ~> check {
-          responseAs[String] shouldEqual "None"
-        }
+            responseAs[String] shouldEqual "None"
+          }
       }
     }
 
@@ -179,24 +181,24 @@ class CollectorRouteSpec extends Specification with Specs2RouteTest {
           route.doNotTrack(Some(DntCookieMatcher(name = "abc", value = "345"))) { dnt =>
             complete(dnt.toString)
           } ~> check {
-          responseAs[String] shouldEqual "false"
-        }
+            responseAs[String] shouldEqual "false"
+          }
       }
       "return true if there is a properly-valued dnt cookie" in {
         Get() ~> Cookie("abc" -> "123") ~>
           route.doNotTrack(Some(DntCookieMatcher(name = "abc", value = "123"))) { dnt =>
             complete(dnt.toString)
           } ~> check {
-          responseAs[String] shouldEqual "true"
-        }
+            responseAs[String] shouldEqual "true"
+          }
       }
       "return true if there is a properly-valued dnt cookie that matches a regex value" in {
         Get() ~> Cookie("abc" -> s"deleted-${System.currentTimeMillis()}") ~>
           route.doNotTrack(Some(DntCookieMatcher(name = "abc", value = "deleted-[0-9]+"))) { dnt =>
             complete(dnt.toString)
           } ~> check {
-          responseAs[String] shouldEqual "true"
-        }
+            responseAs[String] shouldEqual "true"
+          }
       }
     }
 
@@ -206,15 +208,16 @@ class CollectorRouteSpec extends Specification with Specs2RouteTest {
           Some("*")
         ) { (_, ip, _) =>
           complete(ip.toString)
-        } ~> check { responseAs[String] shouldEqual "unknown" }
+        } ~> check(responseAs[String] shouldEqual "unknown")
       }
       "no SP-Anonymous present should extract the IP address" in {
-        Get().withAttributes(Map(AttributeKeys.remoteAddress -> RemoteAddress.IP(InetAddress.getByName("127.0.0.1")))) ~> route
-          .extractors(
-            None
-          ) { (_, ip, _) =>
-            complete(ip.toString)
-          } ~> check { responseAs[String] shouldEqual "127.0.0.1" }
+        Get().withAttributes(
+          Map(AttributeKeys.remoteAddress -> RemoteAddress.IP(InetAddress.getByName("127.0.0.1")))
+        ) ~> route.extractors(
+          None
+        ) { (_, ip, _) =>
+          complete(ip.toString)
+        } ~> check(responseAs[String] shouldEqual "127.0.0.1")
       }
     }
   }

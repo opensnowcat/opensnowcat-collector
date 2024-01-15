@@ -31,13 +31,13 @@ object Dependencies {
     val nsqClient   = "1.3.0"
     val jodaTime    = "2.10.14"
     val slf4j       = "1.7.36"
-    val log4j       = "2.22.1" // CVE-2021-44228
+    val log4j       = "2.22.1"  // CVE-2021-44228
     val config      = "1.4.3"
     val rabbitMQ    = "5.20.0"
-    val jackson     = "2.12.7" // force this version to mitigate security vulnerabilities
-    val thrift      = "0.15.0" // force this version to mitigate security vulnerabilities
+    val jackson     = "2.12.7"  // force this version to mitigate security vulnerabilities
+    val thrift      = "0.15.0"  // force this version to mitigate security vulnerabilities
     val jnrUnixsock = "0.38.21" // force this version to mitigate security vulnerabilities
-    val protobuf    = "3.21.12" // force this version to mitigate security vulnerabilities
+    val protobuf    = "3.21.12"  // force this version to mitigate security vulnerabilities
     // Scala
     val collectorPayload = "0.0.0"
     val tracker          = "1.0.1"
@@ -57,26 +57,28 @@ object Dependencies {
 
   object Libraries {
     // Java
-    val jackson        = "com.fasterxml.jackson.core" % "jackson-databind"     % V.jackson // nsq only
-    val thrift         = "org.apache.thrift"          % "libthrift"            % V.thrift
-    val kinesis        = "com.amazonaws"              % "aws-java-sdk-kinesis" % V.awsSdk
-    val sqs            = "com.amazonaws"              % "aws-java-sdk-sqs"     % V.awsSdk
-    val sts            = "com.amazonaws"              % "aws-java-sdk-sts"     % V.awsSdk % Runtime // Enables web token authentication https://github.com/snowplow/stream-collector/issues/169
-    val pubsub         = "com.google.cloud"           % "google-cloud-pubsub"  % V.pubsub
-    val kafkaClients   = "org.apache.kafka"           % "kafka-clients"        % V.kafka
-    val mskAuth        = "software.amazon.msk"        % "aws-msk-iam-auth"     % V.mskAuth % Runtime // Enables AWS MSK IAM authentication https://github.com/snowplow/stream-collector/pull/214
-    val nsqClient      = "com.snowplowanalytics"      % "nsq-java-client"      % V.nsqClient
-    val jodaTime       = "joda-time"                  % "joda-time"            % V.jodaTime
-    val slf4j          = "org.slf4j"                  % "slf4j-simple"         % V.slf4j
-    val log4jOverSlf4j = "org.slf4j"                  % "log4j-over-slf4j"     % V.slf4j
-    val log4j          = "org.apache.logging.log4j"   % "log4j-core"           % V.log4j
-    val config         = "com.typesafe"               % "config"               % V.config
-    val jnrUnixsocket  = "com.github.jnr"             % "jnr-unixsocket"       % V.jnrUnixsock
-    val rabbitMQ       = "com.rabbitmq"               % "amqp-client"          % V.rabbitMQ
-    val protobuf       = "com.google.protobuf"        % "protobuf-java"        % V.protobuf
+    val jackson = "com.fasterxml.jackson.core" % "jackson-databind"     % V.jackson // nsq only
+    val thrift  = "org.apache.thrift"          % "libthrift"            % V.thrift
+    val kinesis = "com.amazonaws"              % "aws-java-sdk-kinesis" % V.awsSdk
+    val sqs     = "com.amazonaws"              % "aws-java-sdk-sqs"     % V.awsSdk
+    val sts =
+      "com.amazonaws" % "aws-java-sdk-sts" % V.awsSdk % Runtime // Enables web token authentication https://github.com/snowplow/stream-collector/issues/169
+    val pubsub       = "com.google.cloud" % "google-cloud-pubsub" % V.pubsub
+    val kafkaClients = "org.apache.kafka" % "kafka-clients"       % V.kafka
+    val mskAuth =
+      "software.amazon.msk" % "aws-msk-iam-auth" % V.mskAuth % Runtime // Enables AWS MSK IAM authentication https://github.com/snowplow/stream-collector/pull/214
+    val nsqClient      = "com.snowplowanalytics"    % "nsq-java-client"  % V.nsqClient
+    val jodaTime       = "joda-time"                % "joda-time"        % V.jodaTime
+    val slf4j          = "org.slf4j"                % "slf4j-simple"     % V.slf4j
+    val log4jOverSlf4j = "org.slf4j"                % "log4j-over-slf4j" % V.slf4j
+    val log4j          = "org.apache.logging.log4j" % "log4j-core"       % V.log4j
+    val config         = "com.typesafe"             % "config"           % V.config
+    val jnrUnixsocket  = "com.github.jnr"           % "jnr-unixsocket"   % V.jnrUnixsock
+    val rabbitMQ       = "com.rabbitmq"             % "amqp-client"      % V.rabbitMQ
+    val protobuf       = "com.google.protobuf"      % "protobuf-java"    % V.protobuf
 
     // Scala
-    val collectorPayload = "com.snowplowanalytics" % "collector-payload-1"                % V.collectorPayload
+    val collectorPayload = "com.snowplowanalytics"  % "collector-payload-1"               % V.collectorPayload
     val badRows          = "com.snowplowanalytics" %% "snowplow-badrows"                  % V.badRows
     val trackerCore      = "com.snowplowanalytics" %% "snowplow-scala-tracker-core"       % V.tracker
     val trackerEmitterId = "com.snowplowanalytics" %% "snowplow-scala-tracker-emitter-id" % V.tracker

@@ -34,8 +34,7 @@ import com.snowplowanalytics.snowplow.CollectorPayload.thrift.model1.CollectorPa
 import com.snowplowanalytics.snowplow.collectors.scalastream.model._
 import com.snowplowanalytics.snowplow.collectors.scalastream.utils.SplitBatch
 
-/**
-  * Service responding to HTTP requests, mainly setting a cookie identifying the user and storing
+/** Service responding to HTTP requests, mainly setting a cookie identifying the user and storing
   * events
   */
 trait Service {
@@ -55,7 +54,7 @@ trait Service {
     pixelExpected: Boolean,
     doNotTrack: Boolean,
     contentType: Option[ContentType] = None,
-    spAnonymous: Option[String]      = None
+    spAnonymous: Option[String] = None
   ): HttpResponse
   def cookieName: Option[String]
   def doNotTrackCookie: Option[DntCookieMatcher]
@@ -89,8 +88,7 @@ class CollectorService(
 
   private val spAnonymousNuid = "00000000-0000-0000-0000-000000000000"
 
-  /**
-    * Determines the path to be used in the response,
+  /** Determines the path to be used in the response,
     * based on whether a mapping can be found in the config for the original request path.
     */
   override def determinePath(vendor: String, version: String): String = {
@@ -173,10 +171,9 @@ class CollectorService(
   }
 
   def extractQueryParams(qs: Option[String]): Either[IllegalUriException, Map[String, String]] =
-    Either.catchOnly[IllegalUriException] { Uri.Query(qs).toMap }
+    Either.catchOnly[IllegalUriException](Uri.Query(qs).toMap)
 
-  /**
-    * Creates a response to the CORS preflight Options request
+  /** Creates a response to the CORS preflight Options request
     * @param request Incoming preflight Options request
     * @return Response granting permissions to make the actual request
     */
@@ -199,15 +196,16 @@ class CollectorService(
   /** Creates a response with a cross domain policiy file */
   def flashCrossDomainPolicy(config: CrossDomainConfig): HttpResponse =
     if (config.enabled) {
-      HttpResponse(entity = HttpEntity(
-        contentType = ContentType(MediaTypes.`text/xml`, HttpCharsets.`ISO-8859-1`),
-        string = """<?xml version="1.0"?>""" + "\n<cross-domain-policy>\n" +
-          config
-            .domains
-            .map(d => s"""  <allow-access-from domain=\"$d\" secure=\"${config.secure}\" />""")
-            .mkString("\n") +
-          "\n</cross-domain-policy>"
-      )
+      HttpResponse(entity =
+        HttpEntity(
+          contentType = ContentType(MediaTypes.`text/xml`, HttpCharsets.`ISO-8859-1`),
+          string = """<?xml version="1.0"?>""" + "\n<cross-domain-policy>\n" +
+            config
+              .domains
+              .map(d => s"""  <allow-access-from domain=\"$d\" secure=\"${config.secure}\" />""")
+              .mkString("\n") +
+            "\n</cross-domain-policy>"
+        )
       )
     } else {
       HttpResponse(404, entity = "404 not found")
@@ -248,11 +246,11 @@ class CollectorService(
     e.querystring = queryString.orNull
     body.foreach(e.body = _)
     e.path = path
-    userAgent.foreach(e.userAgent   = _)
+    userAgent.foreach(e.userAgent = _)
     refererUri.foreach(e.refererUri = _)
-    e.hostname      = hostname
+    e.hostname = hostname
     e.networkUserId = networkUserId
-    e.headers       = (headers(request, spAnonymous) ++ contentType).asJava
+    e.headers = (headers(request, spAnonymous) ++ contentType).asJava
     contentType.foreach(e.contentType = _)
     e
   }
@@ -275,7 +273,7 @@ class CollectorService(
     sinks.bad.storeRawEvents(toSink, partitionKey)
   }
 
-  /** Builds the final http response from  */
+  /** Builds the final http response from */
   def buildHttpResponse(
     event: CollectorPayload,
     queryParams: Map[String, String],
@@ -332,8 +330,7 @@ class CollectorService(
       }
     }
 
-  /**
-    * Builds a cookie header with the network user id as value.
+  /** Builds a cookie header with the network user id as value.
     * @param cookieConfig cookie configuration extracted from the collector configuration
     * @param networkUserId value of the cookie
     * @param doNotTrack whether do not track is enabled or not
@@ -354,13 +351,13 @@ class CollectorService(
         case None =>
           cookieConfig.map { config =>
             val responseCookie = HttpCookie(
-              name      = config.name,
-              value     = networkUserId,
-              expires   = Some(DateTime.now + config.expiration.toMillis),
-              domain    = cookieDomain(request.headers, config.domains, config.fallbackDomain),
-              path      = Some("/"),
-              secure    = config.secure,
-              httpOnly  = config.httpOnly,
+              name = config.name,
+              value = networkUserId,
+              expires = Some(DateTime.now + config.expiration.toMillis),
+              domain = cookieDomain(request.headers, config.domains, config.fallbackDomain),
+              path = Some("/"),
+              secure = config.secure,
+              httpOnly = config.httpOnly,
               extension = config.sameSite.map(value => s"SameSite=$value")
             )
             `Set-Cookie`(responseCookie)
@@ -379,12 +376,13 @@ class CollectorService(
       val forwardedScheme = for {
         headerName  <- bounceConfig.forwardedProtocolHeader
         headerValue <- request.headers.find(_.lowercaseName == headerName.toLowerCase).map(_.value().toLowerCase())
-        scheme <- if (Set("http", "https").contains(headerValue)) {
-          Some(headerValue)
-        } else {
-          logger.warn(s"Header $headerName contains invalid protocol value $headerValue.")
-          None
-        }
+        scheme <-
+          if (Set("http", "https").contains(headerValue)) {
+            Some(headerValue)
+          } else {
+            logger.warn(s"Header $headerName contains invalid protocol value $headerValue.")
+            None
+          }
       } yield scheme
 
       val redirectUri = request
@@ -416,8 +414,7 @@ class CollectorService(
     if (pixelExpected) List(`Cache-Control`(`no-cache`, `no-store`, `must-revalidate`))
     else Nil
 
-  /**
-    * Determines the cookie domain to be used by inspecting the Origin header of the request
+  /** Determines the cookie domain to be used by inspecting the Origin header of the request
     * and trying to find a match in the list of domains specified in the config file.
     * @param headers The headers from the http request.
     * @param domains The list of cookie domains from the configuration.
@@ -442,8 +439,7 @@ class CollectorService(
   def extractHosts(origins: Seq[HttpOrigin]): Seq[String] =
     origins.map(origin => origin.host.host.address())
 
-  /**
-    * Ensures a match is valid.
+  /** Ensures a match is valid.
     * We only want matches where:
     * a.) the Origin host is exactly equal to the cookie domain from the config
     * b.) the Origin host is a subdomain of the cookie domain from the config.
@@ -453,8 +449,7 @@ class CollectorService(
   def validMatch(host: String, domain: String): Boolean =
     host == domain || host.endsWith("." + domain)
 
-  /**
-    * Gets the IP from a RemoteAddress. If ipAsPartitionKey is false, a UUID will be generated.
+  /** Gets the IP from a RemoteAddress. If ipAsPartitionKey is false, a UUID will be generated.
     * @param remoteAddress Address extracted from an HTTP request
     * @param ipAsPartitionKey Whether to use the ip as a partition key or a random UUID
     * @return a tuple of ip (unknown if it couldn't be extracted) and partition key
@@ -468,8 +463,7 @@ class CollectorService(
       case Some(ip) => (ip, if (ipAsPartitionKey) ip else UUID.randomUUID.toString)
     }
 
-  /**
-    * Gets the network user id from the query string or the request cookie.
+  /** Gets the network user id from the query string or the request cookie.
     * @param request Http request made
     * @param requestCookie cookie associated to the Http request
     * @return a network user id
@@ -484,8 +478,7 @@ class CollectorService(
       case None    => request.uri.query().get("nuid").orElse(requestCookie.map(_.value))
     }
 
-  /**
-    * Creates an Access-Control-Allow-Origin header which specifically allows the domain which made
+  /** Creates an Access-Control-Allow-Origin header which specifically allows the domain which made
     * the request
     * @param request Incoming request
     * @return Header allowing only the domain which made the request or everything

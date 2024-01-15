@@ -1,5 +1,4 @@
-/**
-  * Copyright (c) 2014-2023 Snowplow Analytics Ltd.
+/** Copyright (c) 2014-2023 Snowplow Analytics Ltd.
   * All rights reserved.
   *
   * This program is licensed to you under the Apache License Version 2.0,
@@ -34,11 +33,10 @@ class ConfigReaderSpec extends Specification {
 
     "reject a config file with invalid fallbackDomain" in {
       val source = getConfig("/configs/invalid-fallback-domain.hocon")
-      source.load[CollectorConfig] must beLeft.like {
-        case failures =>
-          failures.toList must contain { (failure: ConfigReaderFailure) =>
-            failure.description must startWith("fallbackDomain contains invalid character")
-          }
+      source.load[CollectorConfig] must beLeft.like { case failures =>
+        failures.toList must contain { (failure: ConfigReaderFailure) =>
+          failure.description must startWith("fallbackDomain contains invalid character")
+        }
       }
     }
   }

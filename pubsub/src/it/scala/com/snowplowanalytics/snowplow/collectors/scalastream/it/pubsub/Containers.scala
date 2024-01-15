@@ -31,15 +31,15 @@ import com.snowplowanalytics.snowplow.collectors.scalastream.it.CollectorContain
 object Containers {
 
   private val executionContext: ExecutionContext = ExecutionContext.global
-  implicit val ioTimer: Timer[IO] = IO.timer(executionContext)
+  implicit val ioTimer: Timer[IO]                = IO.timer(executionContext)
 
-  val collectorPort = 8080
-  val projectId = "google-project-id"
-  val emulatorHost = "localhost"
-  val emulatorPort = 8085
+  val collectorPort         = 8080
+  val projectId             = "google-project-id"
+  val emulatorHost          = "localhost"
+  val emulatorPort          = 8085
   lazy val emulatorHostPort = pubSubEmulator.getMappedPort(emulatorPort)
-  val topicGood = "good"
-  val topicBad = "bad"
+  val topicGood             = "good"
+  val topicBad              = "bad"
 
   private val network = Network.newNetwork()
 
@@ -76,12 +76,12 @@ object Containers {
       dockerImage = s"snowplow/scala-stream-collector-pubsub:${ProjectMetadata.dockerTag}",
       env = Map(
         "PUBSUB_EMULATOR_HOST" -> s"pubsub-emulator:$emulatorPort",
-        "PORT" -> collectorPort.toString,
-        "TOPIC_GOOD" -> topicGood,
-        "TOPIC_BAD" -> topicBad,
-        "GOOGLE_PROJECT_ID" -> projectId,
-        "MAX_BYTES" -> Integer.MAX_VALUE.toString,
-        "JDK_JAVA_OPTIONS" -> "-Dorg.slf4j.simpleLogger.log.com.snowplowanalytics.snowplow.collectors.scalastream.sinks.GooglePubSubSink=warn"
+        "PORT"                 -> collectorPort.toString,
+        "TOPIC_GOOD"           -> topicGood,
+        "TOPIC_BAD"            -> topicBad,
+        "GOOGLE_PROJECT_ID"    -> projectId,
+        "MAX_BYTES"            -> Integer.MAX_VALUE.toString,
+        "JDK_JAVA_OPTIONS"     -> "-Dorg.slf4j.simpleLogger.log.com.snowplowanalytics.snowplow.collectors.scalastream.sinks.GooglePubSubSink=warn"
       ) ++ envs,
       exposedPorts = Seq(collectorPort),
       fileSystemBind = Seq(
@@ -94,13 +94,13 @@ object Containers {
       command = Seq(
         "--config",
         "/snowplow/config/collector.hocon"
-      )
-      ,waitStrategy = Wait.forLogMessage(s".*REST interface bound to.*", 1)
+      ),
+      waitStrategy = Wait.forLogMessage(s".*REST interface bound to.*", 1)
     )
     container.container.withNetwork(network)
 
     val create =
-      if(createTopics)
+      if (createTopics)
         PubSub.createTopicsAndSubscriptions(
           projectId,
           emulatorHost,
@@ -110,13 +110,12 @@ object Containers {
       else
         IO.unit
 
-    Resource.make (
+    Resource.make(
       create *>
-        IO(startContainerWithLogs(container.container, testName))
-          .map(c => CollectorContainer(c, c.getHost, c.getMappedPort(collectorPort)))
-    )(
-      c => IO(c.container.stop())
-    )
+        IO(startContainerWithLogs(container.container, testName)).map(c =>
+          CollectorContainer(c, c.getHost, c.getMappedPort(collectorPort))
+        )
+    )(c => IO(c.container.stop()))
   }
 
   def startEmulator(): Unit = pubSubEmulator.start()

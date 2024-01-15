@@ -19,8 +19,7 @@ import org.apache.kafka.clients.producer._
 
 import com.snowplowanalytics.snowplow.collectors.scalastream.model._
 
-/**
-  * Kafka Sink for the Scala Stream Collector
+/** Kafka Sink for the Scala Stream Collector
   */
 class KafkaSink(
   val maxBytes: Int,
@@ -31,8 +30,7 @@ class KafkaSink(
 
   private val kafkaProducer = createProducer
 
-  /**
-    * Creates a new Kafka Producer with the given
+  /** Creates a new Kafka Producer with the given
     * configuration options
     *
     * @return a new Kafka Producer
@@ -56,8 +54,7 @@ class KafkaSink(
     new KafkaProducer[String, Array[Byte]](props)
   }
 
-  /**
-    * Store raw events to the topic
+  /** Store raw events to the topic
     *
     * @param events The list of events to send
     * @param key The partition key to use

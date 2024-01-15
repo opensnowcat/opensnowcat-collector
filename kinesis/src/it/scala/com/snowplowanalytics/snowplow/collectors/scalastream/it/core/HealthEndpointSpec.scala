@@ -22,40 +22,42 @@ import cats.effect.testing.specs2.CatsIO
 
 import org.specs2.mutable.Specification
 
-import org.http4s.{Request, Method, Uri}
+import org.http4s.{Method, Request, Uri}
 
 import com.snowplowanalytics.snowplow.collectors.scalastream.it.kinesis.containers._
 import com.snowplowanalytics.snowplow.collectors.scalastream.it.kinesis.Kinesis
 import com.snowplowanalytics.snowplow.collectors.scalastream.it.Http
 
 class HealthEndpointSpec extends Specification with Localstack with CatsIO {
-  
+
   override protected val Timeout = 5.minutes
 
   "collector" should {
     "respond with 200 to /health endpoint after it has started" in {
-      val testName = "health-endpoint"
+      val testName   = "health-endpoint"
       val streamGood = s"${testName}-raw"
-      val streamBad = s"${testName}-bad-1"
-      Collector.container(
-        "kinesis/src/it/resources/collector.hocon",
-        testName,
-        streamGood,
-        streamBad
-      ).use { collector =>
-        val uri = Uri.unsafeFromString(s"http://${collector.host}:${collector.port}/health")
-        val request = Request[IO](Method.GET, uri)
+      val streamBad  = s"${testName}-bad-1"
+      Collector
+        .container(
+          "kinesis/src/it/resources/collector.hocon",
+          testName,
+          streamGood,
+          streamBad
+        )
+        .use { collector =>
+          val uri     = Uri.unsafeFromString(s"http://${collector.host}:${collector.port}/health")
+          val request = Request[IO](Method.GET, uri)
 
-        for {
-          status <- Http.status(request)
-          _ <- IO.sleep(5.second)
-          collectorOutput <- Kinesis.readOutput(streamGood, streamBad)
-        } yield {
-          status.code must beEqualTo(200)
-          collectorOutput.good.size should beEqualTo(0)
-          collectorOutput.bad.size should beEqualTo(0)
+          for {
+            status          <- Http.status(request)
+            _               <- IO.sleep(5.second)
+            collectorOutput <- Kinesis.readOutput(streamGood, streamBad)
+          } yield {
+            status.code must beEqualTo(200)
+            collectorOutput.good.size should beEqualTo(0)
+            collectorOutput.bad.size should beEqualTo(0)
+          }
         }
-      }
     }
   }
 }

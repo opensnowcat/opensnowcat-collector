@@ -36,11 +36,11 @@ trait Localstack extends BeforeAfterAll {
 object Localstack {
 
   private val nbPermits = Int.MaxValue
-  private val permits = new Semaphore(nbPermits)
+  private val permits   = new Semaphore(nbPermits)
 
-  val region = "eu-central-1"
-  val host = "localhost"
-  val alias = "localstack"
+  val region      = "eu-central-1"
+  val host        = "localhost"
+  val alias       = "localstack"
   val privatePort = 4566
 
   val network = Network.newNetwork()
@@ -49,7 +49,7 @@ object Localstack {
     val container = GenericContainer(
       dockerImage = "localstack/localstack-light:1.3.0",
       env = Map(
-        "AWS_ACCESS_KEY_ID" -> "unused",
+        "AWS_ACCESS_KEY_ID"     -> "unused",
         "AWS_SECRET_ACCESS_KEY" -> "unused"
       ),
       waitStrategy = Wait.forLogMessage(".*Ready.*", 1),
@@ -68,7 +68,7 @@ object Localstack {
 
   def stop() = synchronized {
     permits.release()
-    if(permits.availablePermits() == nbPermits)
+    if (permits.availablePermits() == nbPermits)
       localstack.stop()
   }
 
@@ -83,26 +83,26 @@ object Localstack {
   def createStreams(
     streams: List[String]
   ): IO[Unit] =
-    streams
-      .traverse_ { s =>
-        IO(
-          localstack.execInContainer(
-            "aws",
-            s"--endpoint-url=http://$host:$privatePort",
-            "kinesis",
-            "create-stream",
-            "--stream-name",
-            s,
-            "--shard-count",
-            "1",
-            "--region",
-            region
-          )
+    streams.traverse_ { s =>
+      IO(
+        localstack.execInContainer(
+          "aws",
+          s"--endpoint-url=http://$host:$privatePort",
+          "kinesis",
+          "create-stream",
+          "--stream-name",
+          s,
+          "--shard-count",
+          "1",
+          "--region",
+          region
         )
-          .flatMap {
-            case res if res.getExitCode() != 0 =>
-              IO.raiseError(new RuntimeException(s"Problem when creating stream $s [${res.getStderr()}] [${res.getStdout()}]"))
-            case _ => IO(println(s"Stream $s created"))
-          }
+      ).flatMap {
+        case res if res.getExitCode() != 0 =>
+          IO.raiseError(
+            new RuntimeException(s"Problem when creating stream $s [${res.getStderr()}] [${res.getStdout()}]")
+          )
+        case _ => IO(println(s"Stream $s created"))
       }
+    }
 }

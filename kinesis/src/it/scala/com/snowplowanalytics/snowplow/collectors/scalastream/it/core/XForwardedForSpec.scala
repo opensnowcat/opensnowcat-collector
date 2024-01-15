@@ -40,34 +40,37 @@ class XForwardedForSpec extends Specification with Localstack with CatsIO {
 
   "collector" should {
     "put X-Forwarded-For header in the collector payload" in {
-      val testName = "X-Forwarded-For"
+      val testName   = "X-Forwarded-For"
       val streamGood = s"${testName}-raw"
-      val streamBad = s"${testName}-bad-1"
+      val streamBad  = s"${testName}-bad-1"
 
       val ip = InetAddress.getByName("123.123.123.123")
 
-      Collector.container(
-        "kinesis/src/it/resources/collector.hocon",
-        testName,
-        streamGood,
-        streamBad
-      ).use { collector =>
-        val request = EventGenerator.mkTp2Event(collector.host, collector.port)
-          .withHeaders(`X-Forwarded-For`(NonEmptyList.one(Some(ip))))
+      Collector
+        .container(
+          "kinesis/src/it/resources/collector.hocon",
+          testName,
+          streamGood,
+          streamBad
+        )
+        .use { collector =>
+          val request = EventGenerator
+            .mkTp2Event(collector.host, collector.port)
+            .withHeaders(`X-Forwarded-For`(NonEmptyList.one(Some(ip))))
 
-        for {
-          _ <- Http.status(request)
-          _ <- IO.sleep(5.second)
-          collectorOutput <- Kinesis.readOutput(streamGood, streamBad)
-        } yield {
-          val expected = "X-Forwarded-For: 123.123.123.123"
-          collectorOutput.good match {
-            case List(one) if one.headers.contains(expected) => ok
-            case List(one) => ko(s"${one.headers} doesn't contain $expected")
-            case other => ko(s"${other.size} output collector payload instead of one")
+          for {
+            _               <- Http.status(request)
+            _               <- IO.sleep(5.second)
+            collectorOutput <- Kinesis.readOutput(streamGood, streamBad)
+          } yield {
+            val expected = "X-Forwarded-For: 123.123.123.123"
+            collectorOutput.good match {
+              case List(one) if one.headers.contains(expected) => ok
+              case List(one)                                   => ko(s"${one.headers} doesn't contain $expected")
+              case other                                       => ko(s"${other.size} output collector payload instead of one")
+            }
           }
         }
-      }
     }
   }
 }

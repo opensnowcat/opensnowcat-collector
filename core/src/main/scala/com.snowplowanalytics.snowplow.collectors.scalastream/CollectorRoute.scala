@@ -72,7 +72,7 @@ trait CollectorRoute {
                       ip,
                       request,
                       pixelExpected = false,
-                      doNotTrack    = dnt,
+                      doNotTrack = dnt,
                       Some(ct),
                       spAnonymous
                     )
@@ -92,7 +92,7 @@ trait CollectorRoute {
                     ip,
                     request,
                     pixelExpected = true,
-                    doNotTrack    = dnt,
+                    doNotTrack = dnt,
                     None,
                     spAnonymous
                   )
@@ -112,7 +112,7 @@ trait CollectorRoute {
                     ip,
                     request,
                     pixelExpected = true,
-                    doNotTrack    = dnt,
+                    doNotTrack = dnt,
                     None,
                     spAnonymous
                   )
@@ -126,8 +126,7 @@ trait CollectorRoute {
       complete(HttpResponse(404, entity = "404 not found"))
     }
 
-  /**
-    * Extract the query string from a request URI
+  /** Extract the query string from a request URI
     * @param rawRequestURI URI optionally extracted from the Raw-Request-URI header
     * @return the extracted query string or an empty string
     */
@@ -139,8 +138,7 @@ trait CollectorRoute {
     }
   }
 
-  /**
-    * Directive to extract a cookie if a cookie name is specified and if such a cookie exists
+  /** Directive to extract a cookie if a cookie name is specified and if such a cookie exists
     * @param name Optionally configured cookie name
     */
   def cookieIfWanted(name: Option[String]): Directive1[Option[HttpCookiePair]] = name match {
@@ -148,8 +146,7 @@ trait CollectorRoute {
     case None    => optionalHeaderValue(_ => None)
   }
 
-  /**
-    * Directive to filter requests which contain a do not track cookie
+  /** Directive to filter requests which contain a do not track cookie
     * @param cookieMatcher the configured do not track cookie to check against
     */
   def doNotTrack(cookieMatcher: Option[DntCookieMatcher]): Directive1[Boolean] =

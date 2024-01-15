@@ -177,14 +177,14 @@ trait Collector {
         case Some(r) =>
           val builder = Http().newMeteredServerAt(collectorConf.interface, port, r)
           val stage   = if (secure) builder.enableHttps(ConnectionContext.httpsServer(SSLContext.getDefault)) else builder
-          stage.bind(routes).map(shutdownHook).map(startupHook).recover {
-            case ex => errorHook(ex)
+          stage.bind(routes).map(shutdownHook).map(startupHook).recover { case ex =>
+            errorHook(ex)
           }
         case None =>
           val builder = Http().newServerAt(collectorConf.interface, port)
           val stage   = if (secure) builder.enableHttps(ConnectionContext.httpsServer(SSLContext.getDefault)) else builder
-          stage.bind(routes).map(shutdownHook).map(startupHook).recover {
-            case ex => errorHook(ex)
+          stage.bind(routes).map(shutdownHook).map(startupHook).recover { case ex =>
+            errorHook(ex)
           }
       }
 
@@ -238,8 +238,7 @@ trait Collector {
       log.warn(s"Initiating $label sink shutdown")
       sink.shutdown()
       log.warn(s"Completed $label sink shutdown")
-    }.recover {
-      case NonFatal(t) =>
-        log.error(s"Caught exception shutting down $label sink", t)
+    }.recover { case NonFatal(t) =>
+      log.error(s"Caught exception shutting down $label sink", t)
     }
 }

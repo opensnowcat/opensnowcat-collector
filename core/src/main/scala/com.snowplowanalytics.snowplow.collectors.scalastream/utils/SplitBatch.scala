@@ -37,8 +37,7 @@ case class SplitBatch(appName: String, appVersion: String) {
     override def initialValue = new TSerializer()
   }
 
-  /**
-    * Split a list of strings into batches, none of them exceeding a given size
+  /** Split a list of strings into batches, none of them exceeding a given size
     * Input strings exceeding the given size end up in the failedBigEvents field of the result
     * @param input List of strings
     * @param maximum No good batch can exceed this size
@@ -74,8 +73,7 @@ case class SplitBatch(appName: String, appVersion: String) {
     iterbatch(input, Nil, 0, Nil, Nil)
   }
 
-  /**
-    * If the CollectorPayload is too big to fit in a single record, attempt to split it into
+  /** If the CollectorPayload is too big to fit in a single record, attempt to split it into
     * multiple records.
     * @param event Incoming CollectorPayload
     * @return a List of Good and Bad events
@@ -104,10 +102,13 @@ case class SplitBatch(appName: String, appVersion: String) {
           val msg = "this POST request split is still too large"
           oversizedPayload(event, getSize(e), maxBytes, msg)
         }
-      } yield EventSerializeResult(goodSerialized, badList)).fold({ msg =>
-        val tooBigPayload = oversizedPayload(event, wholeEventBytes, maxBytes, msg)
-        EventSerializeResult(Nil, List(tooBigPayload))
-      }, identity)
+      } yield EventSerializeResult(goodSerialized, badList)).fold(
+        { msg =>
+          val tooBigPayload = oversizedPayload(event, wholeEventBytes, maxBytes, msg)
+          EventSerializeResult(Nil, List(tooBigPayload))
+        },
+        identity
+      )
     }
   }
 
@@ -120,8 +121,7 @@ case class SplitBatch(appName: String, appVersion: String) {
       array <- sdd.data.asArray.toRight("cannot split POST requests which do not contain a data array")
     } yield (sdd.schema, array.toList)
 
-  /**
-    * Creates a bad row while maintaining a truncation of the original payload to ease debugging.
+  /** Creates a bad row while maintaining a truncation of the original payload to ease debugging.
     * Keeps a tenth of the original payload.
     * @param event original payload
     * @param size size of the oversized payload
