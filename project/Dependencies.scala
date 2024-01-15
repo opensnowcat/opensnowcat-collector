@@ -48,7 +48,7 @@ object Dependencies {
     val akkaHttpMetrics  = "1.7.1"
     val badRows          = "2.1.1"
     // Scala (test only)
-    val specs2         = "4.11.0"
+    val specs2         = "4.20.4"
     val specs2CE       = "0.4.1"
     val testcontainers = "0.40.10"
     val catsRetry      = "2.1.0"
