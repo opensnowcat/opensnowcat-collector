@@ -30,7 +30,7 @@ object Dependencies {
     val mskAuth     = "1.1.9"
     val nsqClient   = "1.3.0"
     val jodaTime    = "2.10.13"
-    val slf4j       = "1.7.32"
+    val slf4j       = "1.7.36"
     val log4j       = "2.17.2" // CVE-2021-44228
     val config      = "1.4.1"
     val rabbitMQ    = "5.15.0"
