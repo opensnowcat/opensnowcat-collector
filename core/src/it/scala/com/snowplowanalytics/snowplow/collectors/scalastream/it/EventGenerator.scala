@@ -28,13 +28,15 @@ object EventGenerator {
     maxBytes: Int
   ): IO[Unit] = {
     val requests = generateEvents(collectorHost, collectorPort, nbGood, nbBad, maxBytes)
-    Http.statuses(requests)
-      .flatMap { responses =>
-        responses.collect { case resp if resp.code != 200 => resp.reason } match {
-          case Nil => IO.unit
-          case errors => IO.raiseError(new RuntimeException(s"${errors.size} requests were not successful. Example error: ${errors.head}"))
-        }
+    Http.statuses(requests).flatMap { responses =>
+      responses.collect { case resp if resp.code != 200 => resp.reason } match {
+        case Nil => IO.unit
+        case errors =>
+          IO.raiseError(
+            new RuntimeException(s"${errors.size} requests were not successful. Example error: ${errors.head}")
+          )
       }
+    }
   }
 
   def generateEvents(
@@ -45,7 +47,7 @@ object EventGenerator {
     maxBytes: Int
   ): List[Request[IO]] = {
     val good = List.fill(nbGood)(mkTp2Event(collectorHost, collectorPort, valid = true, maxBytes))
-    val bad = List.fill(nbBad)(mkTp2Event(collectorHost, collectorPort, valid = false, maxBytes))
+    val bad  = List.fill(nbBad)(mkTp2Event(collectorHost, collectorPort, valid = false, maxBytes))
     good ++ bad
   }
 
@@ -55,7 +57,7 @@ object EventGenerator {
     valid: Boolean = true,
     maxBytes: Int = 100
   ): Request[IO] = {
-    val uri = Uri.unsafeFromString(s"http://$collectorHost:$collectorPort/com.snowplowanalytics.snowplow/tp2")
+    val uri  = Uri.unsafeFromString(s"http://$collectorHost:$collectorPort/com.snowplowanalytics.snowplow/tp2")
     val body = if (valid) "foo" else "a" * (maxBytes + 1)
     Request[IO](Method.POST, uri).withEntity(body)
   }

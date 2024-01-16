@@ -43,11 +43,11 @@ import com.snowplowanalytics.snowplow.CollectorPayload.thrift.model1.CollectorPa
 object utils {
 
   private val executionContext: ExecutionContext = ExecutionContext.global
-  implicit val ioTimer: Timer[IO] = IO.timer(executionContext)
+  implicit val ioTimer: Timer[IO]                = IO.timer(executionContext)
 
   def parseCollectorPayload(bytes: Array[Byte]): CollectorPayload = {
     val deserializer = new TDeserializer()
-    val target = new CollectorPayload()
+    val target       = new CollectorPayload()
     deserializer.deserialize(target, bytes)
     target
   }
@@ -56,8 +56,8 @@ object utils {
     val str = new String(bytes)
     val parsed = for {
       json <- parser.parse(str).leftMap(_.message)
-      sdj <- SelfDescribingData.parse(json).leftMap(_.message("Can't decode JSON as SDJ"))
-      br <- sdj.data.as[BadRow].leftMap(_.getMessage())
+      sdj  <- SelfDescribingData.parse(json).leftMap(_.message("Can't decode JSON as SDJ"))
+      br   <- sdj.data.as[BadRow].leftMap(_.getMessage())
     } yield br
     parsed match {
       case Right(br) => br
@@ -65,10 +65,9 @@ object utils {
     }
   }
 
-  def printBadRows(testName: String, badRows: List[BadRow]): IO[Unit] = {
+  def printBadRows(testName: String, badRows: List[BadRow]): IO[Unit] =
     log(testName, "Bad rows:") *>
       badRows.traverse_(br => log(testName, br.compact))
-  }
 
   def log(testName: String, line: String): IO[Unit] =
     IO(println(s"[$testName] $line"))
@@ -79,7 +78,7 @@ object utils {
   ): GenericContainer[_] = {
     container.start()
     val logger = LoggerFactory.getLogger(loggerName)
-    val logs = new Slf4jLogConsumer(logger)
+    val logs   = new Slf4jLogConsumer(logger)
     container.followOutput(logs)
     container
   }
@@ -111,18 +110,21 @@ object utils {
     }
 
     def flatten(value: Json): Option[List[(String, Json)]] =
-      value.asObject.map(
-        _.toList.flatMap {
-          case (k, v) => flatten(v) match {
-            case None => List(k -> v)
-            case Some(fields) => fields.map {
-              case (innerK, innerV) => s"$k.$innerK" -> innerV
+      value
+        .asObject
+        .map(
+          _.toList.flatMap { case (k, v) =>
+            flatten(v) match {
+              case None => List(k -> v)
+              case Some(fields) =>
+                fields.map { case (innerK, innerV) =>
+                  s"$k.$innerK" -> innerV
+                }
             }
           }
-        }
-      )
+        )
 
-    def withSpaces(s: String): String = if(s.contains(" ")) s""""$s"""" else s
+    def withSpaces(s: String): String = if (s.contains(" ")) s""""$s"""" else s
 
     val fields = flatten(parsed).getOrElse(throw new IllegalArgumentException("Couldn't flatten fields"))
 

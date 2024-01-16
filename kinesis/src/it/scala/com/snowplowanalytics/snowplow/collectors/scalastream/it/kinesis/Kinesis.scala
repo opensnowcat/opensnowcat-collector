@@ -39,31 +39,33 @@ object Kinesis {
     resourceClient.use { client =>
       for {
         good <- consumeGood(client, streamGood)
-        bad <- consumeBad(client, streamBad)
+        bad  <- consumeBad(client, streamBad)
       } yield CollectorOutput(good, bad)
     }
 
   private def resourceClient: Resource[IO, AmazonKinesis] =
-    Resource.make(IO(
-      AmazonKinesisClientBuilder
-        .standard()
-        .withCredentials(new AWSStaticCredentialsProvider(new BasicAWSCredentials("whatever", "whatever")))
-        .withEndpointConfiguration(new EndpointConfiguration(Localstack.publicEndpoint, Localstack.region))
-        .build
-    ))(client => IO(client.shutdown()))
+    Resource.make(
+      IO(
+        AmazonKinesisClientBuilder
+          .standard()
+          .withCredentials(new AWSStaticCredentialsProvider(new BasicAWSCredentials("whatever", "whatever")))
+          .withEndpointConfiguration(new EndpointConfiguration(Localstack.publicEndpoint, Localstack.region))
+          .build
+      )
+    )(client => IO(client.shutdown()))
 
   private def consumeGood(
     kinesis: AmazonKinesis,
-    streamName: String,
+    streamName: String
   ): IO[List[CollectorPayload]] =
     for {
-      raw <- consumeStream(kinesis, streamName)
+      raw  <- consumeStream(kinesis, streamName)
       good <- IO(raw.map(parseCollectorPayload))
     } yield good
 
   private def consumeBad(
     kinesis: AmazonKinesis,
-    streamName: String,
+    streamName: String
   ): IO[List[BadRow]] =
     for {
       raw <- consumeStream(kinesis, streamName)
@@ -72,17 +74,17 @@ object Kinesis {
 
   private def consumeStream(
     kinesis: AmazonKinesis,
-    streamName: String,
+    streamName: String
   ): IO[List[Array[Byte]]] = {
-    val shardId = kinesis.describeStream(streamName).getStreamDescription.getShards.get(0).getShardId
-    val iterator = kinesis.getShardIterator(streamName, shardId, "TRIM_HORIZON").getShardIterator
+    val shardId           = kinesis.describeStream(streamName).getStreamDescription.getShards.get(0).getShardId
+    val iterator          = kinesis.getShardIterator(streamName, shardId, "TRIM_HORIZON").getShardIterator
     val getRecordsRequest = new GetRecordsRequest().withShardIterator(iterator)
 
     IO(kinesis.getRecords(getRecordsRequest).getRecords.asScala.toList.map(getPayload))
   }
 
   def getPayload(record: Record): Array[Byte] = {
-    val data = record.getData()
+    val data   = record.getData()
     val buffer = ArrayBuffer[Byte]()
     while (data.hasRemaining())
       buffer.append(data.get)
