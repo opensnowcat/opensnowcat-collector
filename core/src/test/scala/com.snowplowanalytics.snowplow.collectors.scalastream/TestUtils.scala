@@ -20,7 +20,7 @@ object TestUtils {
   val testConf =
     CollectorConfig(
       interface = "0.0.0.0",
-      port      = 8080,
+      port = 8080,
       paths = Map(
         "/com.acme/track"    -> "/com.snowplowanalytics.snowplow/tp2",
         "/com.acme/redirect" -> "/r/tp2",
@@ -34,40 +34,40 @@ object TestUtils {
         365.days,
         None,
         None,
-        secure   = false,
+        secure = false,
         httpOnly = false,
         sameSite = None
       ),
       doNotTrackCookie = DoNotTrackCookieConfig(false, "abc", "123"),
-      cookieBounce     = CookieBounceConfig(false, "bounce", "new-nuid", None),
-      redirectMacro    = RedirectMacroConfig(false, None),
-      rootResponse     = RootResponseConfig(false, 404),
-      cors             = CORSConfig(-1.seconds),
+      cookieBounce = CookieBounceConfig(false, "bounce", "new-nuid", None),
+      redirectMacro = RedirectMacroConfig(false, None),
+      rootResponse = RootResponseConfig(false, 404),
+      cors = CORSConfig(-1.seconds),
       streams = StreamsConfig(
-        good                       = "good",
-        bad                        = "bad",
+        good = "good",
+        bad = "bad",
         useIpAddressAsPartitionKey = false,
         sink = Kinesis(
-          maxBytes             = 1000000,
-          region               = "us-east-1",
-          threadPoolSize       = 12,
-          aws                  = AWSConfig("cpf", "cpf"),
-          backoffPolicy        = KinesisBackoffPolicyConfig(500L, 1500L, 3),
-          customEndpoint       = None,
-          sqsGoodBuffer        = Some("good-buffer"),
-          sqsBadBuffer         = Some("bad-buffer"),
-          sqsMaxBytes          = 192000,
+          maxBytes = 1000000,
+          region = "us-east-1",
+          threadPoolSize = 12,
+          aws = AWSConfig("cpf", "cpf"),
+          backoffPolicy = KinesisBackoffPolicyConfig(500L, 1500L, 3),
+          customEndpoint = None,
+          sqsGoodBuffer = Some("good-buffer"),
+          sqsBadBuffer = Some("bad-buffer"),
+          sqsMaxBytes = 192000,
           startupCheckInterval = 1.second
         ),
         buffer = BufferConfig(4000000L, 500L, 60000L)
       ),
-      monitoring              = MonitoringConfig(MetricsConfig(StatsdConfig(false, "localhost", 8125, 10.seconds))),
-      telemetry               = None,
-      enableDefaultRedirect   = false,
-      redirectDomains         = Set("localhost"),
-      terminationDeadline     = 10.seconds,
-      preTerminationPeriod    = 10.seconds,
+      monitoring = MonitoringConfig(MetricsConfig(StatsdConfig(false, "localhost", 8125, 10.seconds))),
+      telemetry = None,
+      enableDefaultRedirect = false,
+      redirectDomains = Set("localhost"),
+      terminationDeadline = 10.seconds,
+      preTerminationPeriod = 10.seconds,
       preTerminationUnhealthy = false,
-      experimental            = ExperimentalConfig(WarmupConfig(false, 2000, 2000, 3))
+      experimental = ExperimentalConfig(WarmupConfig(false, 2000, 2000, 3))
     )
 }

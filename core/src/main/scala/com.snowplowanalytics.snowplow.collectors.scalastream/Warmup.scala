@@ -31,8 +31,8 @@ object Warmup {
 
   private lazy val logger: Logger = LoggerFactory.getLogger(getClass)
 
-  def run(interface: String, port: Int, config: WarmupConfig)(
-    implicit ec: ExecutionContext,
+  def run(interface: String, port: Int, config: WarmupConfig)(implicit
+    ec: ExecutionContext,
     system: ActorSystem
   ): Future[Unit] =
     if (config.enable) {
@@ -44,7 +44,9 @@ object Warmup {
 
         val cxnSettings = ConnectionPoolSettings(system)
           .withMaxConnections(maxConnections)
-          .withMaxOpenRequests(Integer.highestOneBit(maxConnections) * 2) // must exceed maxConnections and must be a power of 2
+          .withMaxOpenRequests(
+            Integer.highestOneBit(maxConnections) * 2
+          ) // must exceed maxConnections and must be a power of 2
           .withMaxRetries(0)
 
         Source(1 to numRequests)
@@ -55,8 +57,8 @@ object Warmup {
           .map { results =>
             val numFails = results.count(_.isFailure)
             results
-              .collect {
-                case Failure(e) => e.getMessage
+              .collect { case Failure(e) =>
+                e.getMessage
               }
               .toSet
               .foreach { message: String =>

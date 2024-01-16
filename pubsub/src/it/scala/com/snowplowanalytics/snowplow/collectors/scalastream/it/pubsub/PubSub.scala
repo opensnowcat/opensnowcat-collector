@@ -25,13 +25,7 @@ import com.google.cloud.pubsub.v1.{
   TopicAdminClient,
   TopicAdminSettings
 }
-import com.google.pubsub.v1.{
-  PullRequest,
-  PushConfig,
-  ProjectSubscriptionName,
-  SubscriptionName,
-  TopicName
-}
+import com.google.pubsub.v1.{ProjectSubscriptionName, PullRequest, PushConfig, SubscriptionName, TopicName}
 
 import io.grpc.{ManagedChannel, ManagedChannelBuilder}
 
@@ -63,16 +57,16 @@ object PubSub {
     subscriptionBad: String
   ): IO[CollectorOutput] = {
     val subscriptionAdmin = for {
-      providers <- resourceProviders(emulatorHost, emulatorPort)
+      providers         <- resourceProviders(emulatorHost, emulatorPort)
       subscriptionAdmin <- resourceSubscriptionAdmin(providers)
     } yield subscriptionAdmin
 
     subscriptionAdmin.use { subAdmin =>
       for {
         goodRaw <- pull(subAdmin, projectId, subscriptionGood)
-        good <- IO(goodRaw.map(parseCollectorPayload))
-        badRaw <- pull(subAdmin, projectId, subscriptionBad)
-        bad <- IO(badRaw.map(parseBadRow))
+        good    <- IO(goodRaw.map(parseCollectorPayload))
+        badRaw  <- pull(subAdmin, projectId, subscriptionBad)
+        bad     <- IO(badRaw.map(parseBadRow))
       } yield CollectorOutput(good, bad)
     }
   }
@@ -83,8 +77,8 @@ object PubSub {
   ): Resource[IO, Providers] =
     Resource.make {
       for {
-        channel <- IO(ManagedChannelBuilder.forTarget(s"$emulatorHost:$emulatorPort").usePlaintext().build())
-        channelProvider <- IO(FixedTransportChannelProvider.create(GrpcTransportChannel.create(channel)))
+        channel             <- IO(ManagedChannelBuilder.forTarget(s"$emulatorHost:$emulatorPort").usePlaintext().build())
+        channelProvider     <- IO(FixedTransportChannelProvider.create(GrpcTransportChannel.create(channel)))
         credentialsProvider <- IO(NoCredentialsProvider.create())
       } yield Providers(channel, channelProvider, credentialsProvider)
     } { p =>
@@ -124,11 +118,11 @@ object PubSub {
     subscriptions: List[String]
   ): IO[Unit] =
     resourceSubscriptionAdmin(providers).use { subscriptionAdmin =>
-      val pushConfig = PushConfig.newBuilder().build()
+      val pushConfig         = PushConfig.newBuilder().build()
       val ackDeadlineSeconds = 60
 
       subscriptions.traverse_ { subscription =>
-        val topicName = TopicName.of(projectId, subscription)
+        val topicName        = TopicName.of(projectId, subscription)
         val subscriptionName = SubscriptionName.of(projectId, subscription)
 
         IO(
@@ -165,7 +159,7 @@ object PubSub {
   ): IO[List[Array[Byte]]] =
     onePull(subscriptionAdmin, projectId, subscription).flatMap {
       case list if list.nonEmpty => pull(subscriptionAdmin, projectId, subscription, previous ++ list)
-      case _ => IO.pure(previous)
+      case _                     => IO.pure(previous)
     }
 
   private def onePull(
@@ -173,7 +167,8 @@ object PubSub {
     projectId: String,
     subscription: String
   ): IO[List[Array[Byte]]] = {
-    val pullRequest = PullRequest.newBuilder()
+    val pullRequest = PullRequest
+      .newBuilder()
       .setSubscription(ProjectSubscriptionName.of(projectId, subscription).toString())
       .setMaxMessages(Int.MaxValue)
       .build()

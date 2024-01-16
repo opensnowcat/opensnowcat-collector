@@ -89,14 +89,14 @@ lazy val buildSettings = Seq(
   organization := "com.snowplowanalytics",
   name := "opensnowcat-collector",
   description := "Scala Stream Collector for Snowplow raw events",
-  scalaVersion := "2.12.10",
+  scalaVersion := "2.12.18",
   javacOptions := Seq("-source", "11", "-target", "11"),
   resolvers ++= Dependencies.resolutionRepos
 )
 
 lazy val dynVerSettings = Seq(
   ThisBuild / dynverVTagPrefix := false, // Otherwise git tags required to have v-prefix
-  ThisBuild / dynverSeparator := "-"     // to be compatible with docker
+  ThisBuild / dynverSeparator := "-" // to be compatible with docker
 )
 
 lazy val allSettings = buildSettings ++
@@ -155,7 +155,7 @@ lazy val sqsSettings =
     Docker / packageName := "scala-stream-collector-sqs",
     libraryDependencies ++= Seq(
       Dependencies.Libraries.sqs,
-      Dependencies.Libraries.sts,
+      Dependencies.Libraries.sts
     )
   )
 
@@ -180,7 +180,7 @@ lazy val pubsubSettings =
       Dependencies.Libraries.protobuf,
       // integration tests dependencies
       Dependencies.Libraries.specs2It,
-      Dependencies.Libraries.specs2CEIt,
+      Dependencies.Libraries.specs2CEIt
     ),
     IntegrationTest / test := (IntegrationTest / test).dependsOn(Docker / publishLocal).value,
     IntegrationTest / testOnly := (IntegrationTest / testOnly).dependsOn(Docker / publishLocal).evaluated

@@ -28,7 +28,7 @@ import com.snowplowanalytics.snowplow.collectors.scalastream.it.CollectorContain
 
 object Collector {
 
-  val port = 8080
+  val port     = 8080
   val maxBytes = 10000
 
   def container(
@@ -42,15 +42,15 @@ object Collector {
     val container = GenericContainer(
       dockerImage = s"snowplow/scala-stream-collector-kinesis:${ProjectMetadata.dockerTag}",
       env = Map(
-        "AWS_ACCESS_KEY_ID" -> "whatever",
+        "AWS_ACCESS_KEY_ID"     -> "whatever",
         "AWS_SECRET_ACCESS_KEY" -> "whatever",
-        "PORT" -> port.toString,
-        "STREAM_GOOD" -> streamGood,
-        "STREAM_BAD" -> streamBad,
-        "REGION" -> Localstack.region,
-        "KINESIS_ENDPOINT" -> Localstack.privateEndpoint,
-        "MAX_BYTES" -> maxBytes.toString,
-        "JDK_JAVA_OPTIONS" -> "-Dorg.slf4j.simpleLogger.log.com.snowplowanalytics.snowplow.collectors.scalastream.sinks.KinesisSink=warn"
+        "PORT"                  -> port.toString,
+        "STREAM_GOOD"           -> streamGood,
+        "STREAM_BAD"            -> streamBad,
+        "REGION"                -> Localstack.region,
+        "KINESIS_ENDPOINT"      -> Localstack.privateEndpoint,
+        "MAX_BYTES"             -> maxBytes.toString,
+        "JDK_JAVA_OPTIONS"      -> "-Dorg.slf4j.simpleLogger.log.com.snowplowanalytics.snowplow.collectors.scalastream.sinks.KinesisSink=warn"
       ) ++ configParameters(additionalConfig),
       exposedPorts = Seq(port),
       fileSystemBind = Seq(
@@ -68,15 +68,14 @@ object Collector {
     )
     container.container.withNetwork(Localstack.network)
 
-    val create = if(createStreams) Localstack.createStreams(List(streamGood, streamBad)) else IO.unit
+    val create = if (createStreams) Localstack.createStreams(List(streamGood, streamBad)) else IO.unit
 
     Resource.make(
       create *>
-        IO(startContainerWithLogs(container.container, testName))
-          .map(c => CollectorContainer(c, c.getHost, c.getMappedPort(Collector.port)))
-    )(
-      c => IO(c.container.stop())
-    )
+        IO(startContainerWithLogs(container.container, testName)).map(c =>
+          CollectorContainer(c, c.getHost, c.getMappedPort(Collector.port))
+        )
+    )(c => IO(c.container.stop()))
   }
 
   private def configParameters(rawConfig: Option[String]): Map[String, String] =

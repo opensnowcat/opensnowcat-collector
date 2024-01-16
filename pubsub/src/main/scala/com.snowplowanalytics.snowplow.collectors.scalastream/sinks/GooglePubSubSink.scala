@@ -103,8 +103,7 @@ class GooglePubSubSink private (
     ()
   }
 
-  /**
-    * Convert event bytes to a PubsubMessage to be published
+  /** Convert event bytes to a PubsubMessage to be published
     * @param event Event to be converted
     * @return a PubsubMessage
     */
@@ -134,7 +133,7 @@ class GooglePubSubSink private (
       override def run() {
         val topicAdmin = GooglePubSubSink.createTopicAdmin(customProviders)
 
-        while (!pubsubHealthy) {
+        while (!pubsubHealthy)
           GooglePubSubSink.topicExists(topicAdmin, projectId, topicName) match {
             case Right(true) =>
               log.info(s"Topic $topicName exists")
@@ -146,7 +145,6 @@ class GooglePubSubSink private (
               log.error(s"Error while checking if topic $topicName exists: ${err.getCause()}")
               Thread.sleep(startupCheckInterval.toMillis)
           }
-        }
 
         Either.catchNonFatal(topicAdmin.close()) match {
           case Right(_) =>
@@ -194,8 +192,7 @@ object GooglePubSubSink {
       _ = sink.checkPubsubHealth(customProviders, googlePubSubConfig.startupCheckInterval)
     } yield sink
 
-  /**
-    * Instantiates a Publisher on a topic with the given configuration options.
+  /** Instantiates a Publisher on a topic with the given configuration options.
     * This can fail if the publisher can't be created.
     * @return a PubSub publisher or an error
     */
@@ -212,9 +209,8 @@ object GooglePubSubSink {
       .setBatchingSettings(batchingSettings)
       .setRetrySettings(retrySettings)
       .setHeaderProvider(FixedHeaderProvider.create("User-Agent", createUserAgent(gcpUserAgent)))
-    customProviders.foreach {
-      case (channelProvider, credentialsProvider) =>
-        builder.setChannelProvider(channelProvider).setCredentialsProvider(credentialsProvider)
+    customProviders.foreach { case (channelProvider, credentialsProvider) =>
+      builder.setChannelProvider(channelProvider).setCredentialsProvider(credentialsProvider)
     }
     Either.catchNonFatal(builder.build()).leftMap(e => new RuntimeException("Couldn't build PubSub publisher", e))
   }

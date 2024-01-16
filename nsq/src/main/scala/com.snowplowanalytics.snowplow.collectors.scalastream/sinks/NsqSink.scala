@@ -24,8 +24,7 @@ import scala.collection.JavaConverters._
 import com.snowplowanalytics.client.nsq.NSQProducer
 import com.snowplowanalytics.snowplow.collectors.scalastream.model._
 
-/**
-  * NSQ Sink for the Scala Stream Collector
+/** NSQ Sink for the Scala Stream Collector
   * @param nsqConfig Configuration for Nsq
   * @param topicName Nsq topic name
   */
@@ -33,8 +32,7 @@ class NsqSink(val maxBytes: Int, nsqConfig: Nsq, topicName: String) extends Sink
 
   private val producer = new NSQProducer().addAddress(nsqConfig.host, nsqConfig.port).start()
 
-  /**
-    * Store raw events to the topic
+  /** Store raw events to the topic
     * @param events The list of events to send
     * @param key The partition key (unused)
     */
