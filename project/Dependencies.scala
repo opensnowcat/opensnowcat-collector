@@ -31,12 +31,12 @@ object Dependencies {
     val nsqClient   = "1.3.0"
     val jodaTime    = "2.10.14"
     val slf4j       = "2.0.11"
-    val log4j       = "2.22.1" 
+    val log4j       = "2.22.1"
     val config      = "1.4.3"
     val rabbitMQ    = "5.20.0"
-    val jackson     = "2.12.7.1"  // force this version to mitigate security vulnerabilities
-    val thrift      = "0.15.0"  // force this version to mitigate security vulnerabilities
-    val jnrUnixsock = "0.38.21" // force this version to mitigate security vulnerabilities
+    val jackson     = "2.12.7.1" // force this version to mitigate security vulnerabilities
+    val thrift      = "0.15.0"   // force this version to mitigate security vulnerabilities
+    val jnrUnixsock = "0.38.21"  // force this version to mitigate security vulnerabilities
     val protobuf    = "3.21.12"  // force this version to mitigate security vulnerabilities
     // Scala
     val collectorPayload = "0.0.0"
@@ -51,7 +51,7 @@ object Dependencies {
     val specs2         = "4.20.4"
     val specs2CE       = "0.4.2"
     val testcontainers = "0.41.0"
-    val catsRetry      = "2.1.1"
+    val catsRetry      = "3.1.0"
     val http4s         = "0.21.34"
   }
 
