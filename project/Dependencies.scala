@@ -24,10 +24,10 @@ object Dependencies {
 
   object V {
     // Java
-    val awsSdk      = "1.12.637"
+    val awsSdk      = "1.12.641"
     val pubsub      = "1.125.13"
     val kafka       = "2.8.2"
-    val mskAuth     = "2.0.2"
+    val mskAuth     = "2.0.3"
     val nsqClient   = "1.3.0"
     val jodaTime    = "2.10.14"
     val slf4j       = "2.0.11"
@@ -49,7 +49,7 @@ object Dependencies {
     val badRows          = "2.1.2"
     // Scala (test only)
     val specs2         = "4.20.4"
-    val specs2CE       = "0.4.2"
+    val specs2CE       = "0.5.4"
     val testcontainers = "0.41.0"
     val catsRetry      = "2.1.1"
     val http4s         = "0.21.34"
