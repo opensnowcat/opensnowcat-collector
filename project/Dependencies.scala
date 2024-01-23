@@ -27,7 +27,7 @@ object Dependencies {
     val awsSdk      = "1.12.641"
     val pubsub      = "1.125.13"
     val kafka       = "2.2.2"
-    val mskAuth     = "2.0.2"
+    val mskAuth     = "2.0.3"
     val nsqClient   = "1.3.0"
     val jodaTime    = "2.10.14"
     val slf4j       = "2.0.11"
