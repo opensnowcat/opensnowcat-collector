@@ -26,10 +26,10 @@ object Dependencies {
     // Java
     val awsSdk      = "1.12.641"
     val pubsub      = "1.126.0"
-    val kafka       = "2.2.2"
+    val kafka       = "2.8.2"
     val mskAuth     = "2.0.3"
     val nsqClient   = "1.3.0"
-    val jodaTime    = "2.10.14"
+    val jodaTime    = "2.12.6"
     val slf4j       = "2.0.11"
     val log4j       = "2.22.1"
     val config      = "1.4.3"
@@ -37,14 +37,14 @@ object Dependencies {
     val jackson     = "2.12.7.1" // force this version to mitigate security vulnerabilities
     val thrift      = "0.15.0"   // force this version to mitigate security vulnerabilities
     val jnrUnixsock = "0.38.21"  // force this version to mitigate security vulnerabilities
-    val protobuf    = "3.21.12"  // force this version to mitigate security vulnerabilities
+    val protobuf    = "3.25.2"   // force this version to mitigate security vulnerabilities
     // Scala
     val collectorPayload = "0.0.0"
     val tracker          = "1.0.1"
     val akkaHttp         = "10.2.7"
     val akka             = "2.6.16"
     val scopt            = "4.1.0"
-    val pureconfig       = "0.17.4"
+    val pureconfig       = "0.17.5"
     val akkaHttpMetrics  = "1.7.1"
     val badRows          = "2.1.2"
     // Scala (test only)
