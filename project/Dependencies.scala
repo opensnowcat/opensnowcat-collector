@@ -29,7 +29,7 @@ object Dependencies {
     val kafka       = "2.2.2"
     val mskAuth     = "2.0.3"
     val nsqClient   = "1.3.0"
-    val jodaTime    = "2.10.14"
+    val jodaTime    = "2.12.6"
     val slf4j       = "2.0.11"
     val log4j       = "2.22.1"
     val config      = "1.4.3"
