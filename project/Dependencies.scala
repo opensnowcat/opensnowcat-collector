@@ -24,7 +24,7 @@ object Dependencies {
 
   object V {
     // Java
-    val awsSdk      = "1.12.661"
+    val awsSdk      = "1.12.662"
     val pubsub      = "1.126.6"
     val kafka       = "3.6.1"
     val mskAuth     = "2.0.3"
@@ -51,7 +51,7 @@ object Dependencies {
     // Scala (test only)
     val specs2         = "4.20.5"
     val specs2CE       = "0.5.4"
-    val testcontainers = "0.41.2"
+    val testcontainers = "0.41.3"
     val catsRetry      = "2.1.1"
     val http4s         = "0.21.34"
   }
