@@ -89,7 +89,7 @@ lazy val buildSettings = Seq(
   organization := "com.snowplowanalytics",
   name := "opensnowcat-collector",
   description := "Scala Stream Collector for Snowplow raw events",
-  scalaVersion := "2.12.19",
+  scalaVersion := "2.13.13",
   javacOptions := Seq("-source", "11", "-target", "11"),
   resolvers ++= Dependencies.resolutionRepos
 )
