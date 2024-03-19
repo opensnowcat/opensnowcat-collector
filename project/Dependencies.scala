@@ -31,7 +31,7 @@ object Dependencies {
     val nsqClient   = "1.3.0"
     val jodaTime    = "2.12.7"
     val slf4j       = "2.0.12"
-    val log4j       = "2.23.0"
+    val log4j       = "2.23.1"
     val config      = "1.4.3"
     val rabbitMQ    = "5.20.0"
     val jackson     = "2.16.2"
