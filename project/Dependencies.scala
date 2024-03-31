@@ -37,7 +37,7 @@ object Dependencies {
     val jackson     = "2.17.0"
     val thrift      = "0.15.0"
     val jnrUnixsock = "0.38.22"
-    val protobuf    = "3.25.3"
+    val protobuf    = "4.26.1"
 
     // Scala
     val collectorPayload = "0.0.0"
