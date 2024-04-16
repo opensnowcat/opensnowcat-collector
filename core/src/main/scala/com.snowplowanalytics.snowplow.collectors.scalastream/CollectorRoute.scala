@@ -52,11 +52,42 @@ trait CollectorRoute {
     doNotTrack(collectorService.doNotTrackCookie) { dnt =>
       cookieIfWanted(collectorService.cookieName) { reqCookie =>
         val cookie = reqCookie.map(_.toCookie)
+        println(s"cookieIfWanted -> cookie=${cookie}")
         headers { (userAgent, refererURI, rawRequestURI, spAnonymous) =>
           val qs = queryString(rawRequestURI)
+          println(s"cookieIfWanted -> qs=${qs}")
           extractors(spAnonymous) { (host, ip, request) =>
+            println(s"cookieIfWanted -> extractors=($host, $ip, $request)")
+            // TODO: How to construct a PathMatcher without the .r?
+            val analyticsJsRoute = path("v1" / "p".r) { _ =>
+              val path = collectorService.determinePath("v1", "p")
+              post {
+                extractContentType { ct =>
+                  entity(as[String]) { body =>
+                    println(s"ZZZ: analytics.js bridge -> cookie")
+                    println(s"ZZZ: ${body}")
+                    val r = collectorService.cookie(
+                      qs,
+                      Some(body),
+                      path,
+                      cookie,
+                      userAgent,
+                      refererURI,
+                      host,
+                      ip,
+                      request,
+                      pixelExpected = false,
+                      doNotTrack = dnt,
+                      Some(ct),
+                      spAnonymous
+                    )
+                    complete(r)
+                  }
+                }
+              }
+            }
             // get the adapter vendor and version from the path
-            path(Segment / Segment) { (vendor, version) =>
+            analyticsJsRoute ~ path(Segment / Segment) { (vendor, version) =>
               val path = collectorService.determinePath(vendor, version)
               post {
                 extractContentType { ct =>
