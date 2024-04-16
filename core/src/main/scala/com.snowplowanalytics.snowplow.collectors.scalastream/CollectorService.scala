@@ -111,10 +111,13 @@ class CollectorService(
     contentType: Option[ContentType] = None,
     spAnonymous: Option[String]
   ): HttpResponse = {
+    println(s"cookie")
     val (ipAddress, partitionKey) = ipAndPartitionKey(ip, config.streams.useIpAddressAsPartitionKey)
+    println(s"cookie - ipAddress=$ipAddress, partitionKey=$partitionKey, queryString=$queryString")
 
     extractQueryParams(queryString) match {
       case Right(params) =>
+        println(s"cookie.right - params=$params")
         val redirect = path.startsWith("/r/")
 
         val nuidOpt  = networkUserId(request, cookie, spAnonymous)
@@ -142,6 +145,7 @@ class CollectorService(
             ct,
             spAnonymous
           )
+        println(s"cookie.right: sink=${!bounce && !doNotTrack}, event=${event}")
         // we don't store events in case we're bouncing
         if (!bounce && !doNotTrack) sinkEvent(event, partitionKey)
 
@@ -154,15 +158,20 @@ class CollectorService(
             `Access-Control-Allow-Credentials`(true)
           )
 
+        println(s"cookie.right - headers")
+        headers.foreach(println)
+
         buildHttpResponse(event, params, headers.toList, redirect, pixelExpected, bounce, config.redirectMacro)
 
       case Left(error) =>
+        println(s"cookie.error - error=$error")
         val badRow = BadRow.GenericError(
           Processor(appName, appVersion),
           Failure.GenericFailure(Instant.now(), NonEmptyList.one(error.getMessage)),
           Payload.RawPayload(queryString.getOrElse(""))
         )
 
+        println(s"cookie.error - sinks.bad.isHealthy=${sinks.bad.isHealthy}]")
         if (sinks.bad.isHealthy) {
           sinkBad(badRow, partitionKey)
           HttpResponse(StatusCodes.OK)
@@ -299,7 +308,9 @@ class CollectorService(
           HttpEntity(contentType = ContentType(MediaTypes.`image/gif`), bytes = CollectorService.pixel)
         )
       // See https://github.com/snowplow/snowplow-javascript-tracker/issues/482
-      case _ => HttpResponse(entity = "ok")
+      case _ =>
+        println("buildUsualHttpResponse")
+        HttpResponse(entity = "ok")
     }
 
   /** Builds the appropriate http response when dealing with click redirects. */
