@@ -79,7 +79,8 @@ trait CollectorRoute {
                       pixelExpected = false,
                       doNotTrack = dnt,
                       Some(ct),
-                      spAnonymous
+                      spAnonymous,
+                      analyticsJsBridge = true
                     )
                     complete(r)
                   }
