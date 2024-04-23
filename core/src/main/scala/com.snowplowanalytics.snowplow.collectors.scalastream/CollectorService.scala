@@ -54,7 +54,8 @@ trait Service {
     pixelExpected: Boolean,
     doNotTrack: Boolean,
     contentType: Option[ContentType] = None,
-    spAnonymous: Option[String] = None
+    spAnonymous: Option[String] = None,
+    analyticsJsBridge: Boolean = false
   ): HttpResponse
   def cookieName: Option[String]
   def doNotTrackCookie: Option[DntCookieMatcher]
@@ -109,9 +110,10 @@ class CollectorService(
     pixelExpected: Boolean,
     doNotTrack: Boolean,
     contentType: Option[ContentType] = None,
-    spAnonymous: Option[String]
+    spAnonymous: Option[String],
+    analyticsJsBridge: Boolean = false
   ): HttpResponse = {
-    println(s"cookie")
+    println(s"cookie, analyticsJsBridge=$analyticsJsBridge")
     val (ipAddress, partitionKey) = ipAndPartitionKey(ip, config.streams.useIpAddressAsPartitionKey)
     println(s"cookie - ipAddress=$ipAddress, partitionKey=$partitionKey, queryString=$queryString")
 
@@ -143,7 +145,8 @@ class CollectorService(
             request,
             nuid,
             ct,
-            spAnonymous
+            spAnonymous,
+            analyticsJsBridge = analyticsJsBridge
           )
         println(s"cookie.right: sink=${!bounce && !doNotTrack}, event=${event}")
         // we don't store events in case we're bouncing
@@ -243,10 +246,18 @@ class CollectorService(
     request: HttpRequest,
     networkUserId: String,
     contentType: Option[String],
-    spAnonymous: Option[String]
+    spAnonymous: Option[String],
+    analyticsJsBridge: Boolean = false
   ): CollectorPayload = {
+    val tpe = if (analyticsJsBridge) {
+      "iglu:com.segment/analyticsjs/jsonschema/1-0-0"
+    } else {
+      "iglu:com.snowplowanalytics.snowplow/CollectorPayload/thrift/1-0-0"
+    }
+
+    println(s"ZZZ: Event: ${body.getOrElse("")}")
     val e = new CollectorPayload(
-      "iglu:com.snowplowanalytics.snowplow/CollectorPayload/thrift/1-0-0",
+      tpe,
       ipAddress,
       System.currentTimeMillis,
       "UTF-8",
