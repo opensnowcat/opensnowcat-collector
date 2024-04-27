@@ -113,13 +113,14 @@ class CollectorService(
     spAnonymous: Option[String],
     analyticsJsBridge: Boolean = false
   ): HttpResponse = {
-    println(s"cookie, analyticsJsBridge=$analyticsJsBridge")
+//    def log(msg: String) = if (analyticsJsBridge) println(s"cookie: $msg")
+//    log(s"cookie, analyticsJsBridge=$analyticsJsBridge")
     val (ipAddress, partitionKey) = ipAndPartitionKey(ip, config.streams.useIpAddressAsPartitionKey)
-    println(s"cookie - ipAddress=$ipAddress, partitionKey=$partitionKey, queryString=$queryString")
+//    log(s"cookie - ipAddress=$ipAddress, partitionKey=$partitionKey, queryString=$queryString")
 
     extractQueryParams(queryString) match {
       case Right(params) =>
-        println(s"cookie.right - params=$params")
+//        println(s"cookie.right - params=$params")
         val redirect = path.startsWith("/r/")
 
         val nuidOpt  = networkUserId(request, cookie, spAnonymous)
@@ -148,7 +149,7 @@ class CollectorService(
             spAnonymous,
             analyticsJsBridge = analyticsJsBridge
           )
-        println(s"cookie.right: sink=${!bounce && !doNotTrack}, event=${event}")
+//        println(s"cookie.right: sink=${!bounce && !doNotTrack}, event=${event}")
         // we don't store events in case we're bouncing
         if (!bounce && !doNotTrack) sinkEvent(event, partitionKey)
 
@@ -161,7 +162,7 @@ class CollectorService(
             `Access-Control-Allow-Credentials`(true)
           )
 
-        println(s"cookie.right - headers")
+//        println(s"cookie.right - headers")
         headers.foreach(println)
 
         buildHttpResponse(event, params, headers.toList, redirect, pixelExpected, bounce, config.redirectMacro)
@@ -250,12 +251,31 @@ class CollectorService(
     analyticsJsBridge: Boolean = false
   ): CollectorPayload = {
     val tpe = if (analyticsJsBridge) {
-      "iglu:com.segment/analyticsjs/jsonschema/1-0-0"
+//      "iglu:com.segment/analyticsjs/jsonschema/1-0-0"
+      "iglu:com.snowplowanalytics.snowplow/CollectorPayload/thrift/1-0-0"
     } else {
       "iglu:com.snowplowanalytics.snowplow/CollectorPayload/thrift/1-0-0"
     }
 
-    println(s"ZZZ: Event: ${body.getOrElse("")}")
+    val customBody = if (analyticsJsBridge) {
+      val b = io.circe.JsonObject(
+        "schema" -> io.circe.Json.fromString("iglu:com.snowplowanalytics.snowplow/contexts/jsonschema/1-0-0"),
+        "data" -> io.circe.Json.fromValues(List(
+          io.circe.Json.fromJsonObject(io.circe.JsonObject(
+            "schema" -> io.circe.Json.fromString("iglu:com.segment/analyticsjs/jsonschema/1-0-0"),
+            "data" -> io.circe.Json.fromJsonObject(io.circe.JsonObject(
+              "payload" -> io.circe.parser.parse(body.getOrElse("{}")).right.get
+            ))
+          ))
+        ))
+      )
+      println(io.circe.Json.fromJsonObject(b).spaces2SortKeys)
+      Some(io.circe.Json.fromJsonObject(b).noSpaces)
+    } else {
+      body
+    }
+
+//    println(s"ZZZ: Event: ${body.getOrElse("")}")
     val e = new CollectorPayload(
       tpe,
       ipAddress,
@@ -264,7 +284,7 @@ class CollectorService(
       collector
     )
     e.querystring = queryString.orNull
-    body.foreach(e.body = _)
+    customBody.foreach(e.body = _)
     e.path = path
     userAgent.foreach(e.userAgent = _)
     refererUri.foreach(e.refererUri = _)
@@ -320,7 +340,7 @@ class CollectorService(
         )
       // See https://github.com/snowplow/snowplow-javascript-tracker/issues/482
       case _ =>
-        println("buildUsualHttpResponse")
+//        println("buildUsualHttpResponse")
         HttpResponse(entity = "ok")
     }
 

@@ -29,12 +29,18 @@ class StdoutSink(val maxBytes: Int, streamName: String) extends Sink {
       case "out" =>
         println(s"StdoutSink.out: ${events.size}")
         events.foreach { e =>
-          println(Base64.encodeBase64String(e))
+          val decoded = new com.snowplowanalytics.snowplow.CollectorPayload.thrift.model1.CollectorPayload
+          val decoder = new org.apache.thrift.TDeserializer
+          decoder.deserialize(decoded, e)
+          println(decoded)
+//          println(Base64.encodeBase64String(e))
         }
       case "err" =>
-        println(s"StdoutSink.err: ${events.size}")
+        ()
+//        println(s"StdoutSink.err: ${events.size}")
         events.foreach { e =>
-          Console.err.println(Base64.encodeBase64String(e))
+          val _ = Base64.encodeBase64String(e)
+//          Console.err.println(Base64.encodeBase64String(e))
         }
     }
 

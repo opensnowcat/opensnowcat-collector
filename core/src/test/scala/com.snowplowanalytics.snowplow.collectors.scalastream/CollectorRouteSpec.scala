@@ -68,7 +68,14 @@ class CollectorRouteSpec extends Specification with Specs2RouteTest {
       val event = """{"timestamp":"2024-04-14T20:36:53.131Z","integrations":{},"userId":"562927","anonymousId":"e09fac9f-16e4-43f1-8753-c55023820f81","type":"page","properties":{"path":"/","referrer":"","search":"","title":"SnowcatCloud: Cloud-Hosted Snowplow SOC2 Type 2 Certified","url":"https://www.snowcatcloud.com"},"context":{"page":{"path":"/","referrer":"","search":"","title":"SnowcatCloud: Cloud-Hosted Snowplow SOC2 Type 2 Certified","url":"https://www.snowcatcloud.com"},"userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36","userAgentData":{"brands":[{"brand":"Google Chrome","version":"123"},{"brand":"Not:A-Brand","version":"8"},{"brand":"Chromium","version":"123"}],"mobile":false,"platform":"macOS"},"locale":"en-US","library":{"name":"analytics.js","version":"next-1.64.0"},"timezone":"Europe/Madrid"},"messageId":"ajs-next-eae00995851506a0b58be4e786deeec9","writeKey":"rWAfVSHRrcvxG0UH4vv3aFZ2dIPmv08c","sentAt":"2024-04-14T20:36:53.134Z","_metadata":{"bundled":["Segment.io"],"unbundled":[],"bundledIds":[]}}"""
       Post("/v1/p", event) ~> route.collectorRoute ~> check {
         println(s"ZZZ: response=${responseAs[String]}")
+        // TODO: Validate response to be
+        // { "success": true }
         responseAs[String] shouldEqual "cookie"
+        // TODO:
+        // analytics.identify('user_123')
+        // We send a server-side cookie ajs_user_id with the value user_123
+        //
+        // There is a chance this is for a different route
       }
     }
   }
