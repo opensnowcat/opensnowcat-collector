@@ -23,6 +23,7 @@ import org.specs2.mutable.Specification
 
 import java.net.InetAddress
 
+// TODO: Move these methods to another class
 class CollectorServiceSpec2 extends Specification {
   case class ProbeService(service: CollectorService, good: TestSink, bad: TestSink)
 
@@ -80,11 +81,23 @@ class CollectorServiceSpec2 extends Specification {
           doNotTrack = false,
           analyticsJsBridge = true
         )
-        good.storedRawEvents.foreach { data =>
-          val s = new String(data)
-          println(s"ZZZ Event: ${data.length}")
-          println(s)
-        }
+
+
+        val actualEvent = good.storedRawEvents.head
+        val decoded = new CollectorPayload
+        val decoder = new org.apache.thrift.TDeserializer
+        decoder.deserialize(decoded, actualEvent)
+
+//        val actualJson = io.circe.parser.parse(decoded.body).right.get.noSpacesSortKeys
+//        val expectedJson = io.circe.parser.parse(body).right.get.noSpacesSortKeys
+
+
+        val encoder = new org.apache.thrift.TSerializer(new org.apache.thrift.protocol.TSimpleJSONProtocol.Factory)
+        val output = encoder.serialize(decoded)
+        println(new String(output))
+
+
+//        actualJson must be_==(expectedJson)
         good.storedRawEvents must have size 1
         bad.storedRawEvents must have size 0
       }
