@@ -58,35 +58,19 @@ trait CollectorRoute {
 //          println(s"cookieIfWanted -> qs=${qs}")
           extractors(spAnonymous) { (host, ip, request) =>
 //            println(s"cookieIfWanted -> extractors=($host, $ip, $request)")
-            // TODO: How to construct a PathMatcher without the .r?
-            val analyticsJsRoute = path("v1" / "p".r) { _ =>
-              val path = collectorService.determinePath("v1", "p")
-              post {
-                extractContentType { ct =>
-                  entity(as[String]) { body =>
-                    println(s"ZZZ: analytics.js bridge -> cookie")
-//                    println(s"ZZZ: ${body}")
-                    val r = collectorService.cookie(
-                      qs,
-                      Some(body),
-                      path,
-                      cookie,
-                      userAgent,
-                      refererURI,
-                      host,
-                      ip,
-                      request,
-                      pixelExpected = false,
-                      doNotTrack = dnt,
-                      Some(ct),
-                      spAnonymous,
-                      analyticsJsBridge = true
-                    )
-                    complete(r)
-                  }
-                }
-              }
-            }
+            val analyticsJsRoute = AnalyticsJsBridge.routes(
+              queryString = qs,
+              cookie = cookie,
+              userAgent = userAgent,
+              refererUri = refererURI,
+              hostname = host,
+              ip = ip,
+              doNotTrack = dnt,
+              request = request,
+              spAnonymous = spAnonymous,
+              extractContentType = extractContentType,
+              collectorService = collectorService
+            )
             // get the adapter vendor and version from the path
             analyticsJsRoute ~ path(Segment / Segment) { (vendor, version) =>
               val path = collectorService.determinePath(vendor, version)

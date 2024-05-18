@@ -18,6 +18,7 @@ package com.snowplowanalytics.snowplow.collectors.scalastream
 
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers._
+import com.snowplowanalytics.snowplow.collectors.scalastream.fixtures.AnalyticsJsFixture
 //import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.testkit.Specs2RouteTest
 
@@ -48,7 +49,13 @@ class CollectorRouteSpec extends Specification with Specs2RouteTest {
           contentType: Option[ContentType] = None,
           spAnonymous: Option[String] = spAnonymous,
           analyticsJsBridge: Boolean = false
-        ): HttpResponse                                            = HttpResponse(200, entity = s"cookie")
+        ): HttpResponse =
+          if (analyticsJsBridge) {
+            HttpResponse(200, entity = AnalyticsJsBridge.jsonResponse.noSpaces)
+          } else {
+            HttpResponse(200, entity = s"cookie")
+          }
+
         def cookieName: Option[String]                             = Some("name")
         def doNotTrackCookie: Option[DntCookieMatcher]             = None
         def determinePath(vendor: String, version: String): String = "/p1/p2"
@@ -64,18 +71,65 @@ class CollectorRouteSpec extends Specification with Specs2RouteTest {
   val routeWithAnonymousTracking = mkRoute(true, Some("*"))
 
   "The collector <> analytics.js bridge route" should {
-    "accept a page view event" in {
-      val event = """{"timestamp":"2024-04-14T20:36:53.131Z","integrations":{},"userId":"562927","anonymousId":"e09fac9f-16e4-43f1-8753-c55023820f81","type":"page","properties":{"path":"/","referrer":"","search":"","title":"SnowcatCloud: Cloud-Hosted Snowplow SOC2 Type 2 Certified","url":"https://www.snowcatcloud.com"},"context":{"page":{"path":"/","referrer":"","search":"","title":"SnowcatCloud: Cloud-Hosted Snowplow SOC2 Type 2 Certified","url":"https://www.snowcatcloud.com"},"userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36","userAgentData":{"brands":[{"brand":"Google Chrome","version":"123"},{"brand":"Not:A-Brand","version":"8"},{"brand":"Chromium","version":"123"}],"mobile":false,"platform":"macOS"},"locale":"en-US","library":{"name":"analytics.js","version":"next-1.64.0"},"timezone":"Europe/Madrid"},"messageId":"ajs-next-eae00995851506a0b58be4e786deeec9","writeKey":"rWAfVSHRrcvxG0UH4vv3aFZ2dIPmv08c","sentAt":"2024-04-14T20:36:53.134Z","_metadata":{"bundled":["Segment.io"],"unbundled":[],"bundledIds":[]}}"""
+    def assertResponse(response: String) = {
+      val jsonE = io.circe.parser.parse(response)
+      jsonE.isRight shouldEqual true
+      val json     = jsonE.right.get
+      val expected = AnalyticsJsBridge.jsonResponse
+      json shouldEqual expected
+    }
+
+    "accept an identify event" in {
+      val event = AnalyticsJsFixture.identifyPayload.noSpaces
+      Post("/v1/i", event) ~> route.collectorRoute ~> check {
+        assertResponse(responseAs[String])
+      }
+    }
+
+    "accept a track event" in {
+      val event = AnalyticsJsFixture.trackPayload.noSpaces
+      Post("/v1/t", event) ~> route.collectorRoute ~> check {
+        assertResponse(responseAs[String])
+      }
+    }
+
+    "accept a page event" in {
+      val event = AnalyticsJsFixture.pagePayload.noSpaces
       Post("/v1/p", event) ~> route.collectorRoute ~> check {
-        println(s"ZZZ: response=${responseAs[String]}")
-        // TODO: Validate response to be
-        // { "success": true }
-        responseAs[String] shouldEqual "cookie"
+        assertResponse(responseAs[String])
         // TODO:
         // analytics.identify('user_123')
         // We send a server-side cookie ajs_user_id with the value user_123
         //
         // There is a chance this is for a different route
+      }
+    }
+
+    "accept a screen event" in {
+      val event = AnalyticsJsFixture.screenPayload.noSpaces
+      Post("/v1/s", event) ~> route.collectorRoute ~> check {
+        assertResponse(responseAs[String])
+      }
+    }
+
+    "accept a group event" in {
+      val event = AnalyticsJsFixture.groupPayload.noSpaces
+      Post("/v1/g", event) ~> route.collectorRoute ~> check {
+        assertResponse(responseAs[String])
+      }
+    }
+
+    "accept an alias event" in {
+      val event = AnalyticsJsFixture.aliasPayload.noSpaces
+      Post("/v1/a", event) ~> route.collectorRoute ~> check {
+        assertResponse(responseAs[String])
+      }
+    }
+
+    "reject non analytics.js path" in {
+      val event = AnalyticsJsFixture.aliasPayload.noSpaces
+      Post("/v1/x", event) ~> route.collectorRoute ~> check {
+        status.isFailure() must beTrue
       }
     }
   }
