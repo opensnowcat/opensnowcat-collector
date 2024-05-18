@@ -165,7 +165,16 @@ class CollectorService(
 //        println(s"cookie.right - headers")
         headers.foreach(println)
 
-        buildHttpResponse(event, params, headers.toList, redirect, pixelExpected, bounce, config.redirectMacro)
+        buildHttpResponse(
+          event,
+          params,
+          headers.toList,
+          redirect = redirect,
+          pixelExpected = pixelExpected,
+          bounce = bounce,
+          config.redirectMacro,
+          analyticsJsBridge = analyticsJsBridge
+        )
 
       case Left(error) =>
         println(s"cookie.error - error=$error")
@@ -251,24 +260,42 @@ class CollectorService(
     analyticsJsBridge: Boolean = false
   ): CollectorPayload = {
     val tpe = if (analyticsJsBridge) {
-//      "iglu:com.segment/analyticsjs/jsonschema/1-0-0"
-      "iglu:com.snowplowanalytics.snowplow/CollectorPayload/thrift/1-0-0"
+      "iglu:com.segment/analyticsjs/jsonschema/1-0-0"
+//      "iglu:com.snowplowanalytics.snowplow/CollectorPayload/thrift/1-0-0"
     } else {
       "iglu:com.snowplowanalytics.snowplow/CollectorPayload/thrift/1-0-0"
     }
 
     val customBody = if (analyticsJsBridge) {
-      val b = io.circe.JsonObject(
-        "schema" -> io.circe.Json.fromString("iglu:com.snowplowanalytics.snowplow/contexts/jsonschema/1-0-0"),
-        "data" -> io.circe.Json.fromValues(List(
-          io.circe.Json.fromJsonObject(io.circe.JsonObject(
-            "schema" -> io.circe.Json.fromString("iglu:com.segment/analyticsjs/jsonschema/1-0-0"),
-            "data" -> io.circe.Json.fromJsonObject(io.circe.JsonObject(
-              "payload" -> io.circe.parser.parse(body.getOrElse("{}")).right.get
-            ))
-          ))
-        ))
-      )
+      val b = io
+        .circe
+        .JsonObject(
+          "schema" -> io.circe.Json.fromString("iglu:com.snowplowanalytics.snowplow/contexts/jsonschema/1-0-0"),
+          "data" -> io
+            .circe
+            .Json
+            .fromValues(
+              List(
+                io.circe
+                  .Json
+                  .fromJsonObject(
+                    io.circe
+                      .JsonObject(
+                        "schema" -> io.circe.Json.fromString("iglu:com.segment/analyticsjs/jsonschema/1-0-0"),
+                        "data" -> io
+                          .circe
+                          .Json
+                          .fromJsonObject(
+                            io.circe
+                              .JsonObject(
+                                "payload" -> io.circe.parser.parse(body.getOrElse("{}")).right.get
+                              )
+                          )
+                      )
+                  )
+              )
+            )
+        )
       println(io.circe.Json.fromJsonObject(b).spaces2SortKeys)
       Some(io.circe.Json.fromJsonObject(b).noSpaces)
     } else {
@@ -321,27 +348,35 @@ class CollectorService(
     redirect: Boolean,
     pixelExpected: Boolean,
     bounce: Boolean,
-    redirectMacroConfig: RedirectMacroConfig
+    redirectMacroConfig: RedirectMacroConfig,
+    analyticsJsBridge: Boolean = false
   ): HttpResponse =
     if (redirect) {
       val r = buildRedirectHttpResponse(event, queryParams, redirectMacroConfig)
       r.withHeaders(r.headers ++ headers)
     } else {
-      buildUsualHttpResponse(pixelExpected, bounce).withHeaders(headers)
+      buildUsualHttpResponse(pixelExpected = pixelExpected, bounce = bounce, analyticsJsBridge = analyticsJsBridge)
+        .withHeaders(headers)
     }
 
   /** Builds the appropriate http response when not dealing with click redirects. */
-  def buildUsualHttpResponse(pixelExpected: Boolean, bounce: Boolean): HttpResponse =
-    (pixelExpected, bounce) match {
-      case (true, true) => HttpResponse(StatusCodes.Found)
-      case (true, false) =>
+  def buildUsualHttpResponse(
+    pixelExpected: Boolean,
+    bounce: Boolean,
+    analyticsJsBridge: Boolean = false
+  ): HttpResponse =
+    (pixelExpected, bounce, analyticsJsBridge) match {
+      case (true, true, _) => HttpResponse(StatusCodes.Found)
+      case (true, false, _) =>
         HttpResponse(entity =
           HttpEntity(contentType = ContentType(MediaTypes.`image/gif`), bytes = CollectorService.pixel)
         )
       // See https://github.com/snowplow/snowplow-javascript-tracker/issues/482
-      case _ =>
-//        println("buildUsualHttpResponse")
+      case (_, _, false) =>
         HttpResponse(entity = "ok")
+      // analytics.js compatible response
+      case (_, _, true) =>
+        HttpResponse(entity = AnalyticsJsBridge.jsonResponse.noSpaces)
     }
 
   /** Builds the appropriate http response when dealing with click redirects. */
