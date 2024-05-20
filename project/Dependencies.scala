@@ -24,8 +24,13 @@ object Dependencies {
 
   object V {
     // Java
+<<<<<<< update/aws-java-sdk-kinesis-1.12.701
     val awsSdk      = "1.12.701"
     val pubsub      = "1.128.1"
+=======
+    val awsSdk      = "1.12.725"
+    val pubsub      = "1.129.5"
+>>>>>>> main
     val kafka       = "3.7.0"
     val mskAuth     = "2.1.0"
     val nsqClient   = "1.3.0"
