@@ -31,6 +31,7 @@ object BuildSettings {
   }
 
   lazy val sbtAssemblySettings = Seq(
+    // TODO: Roll this back
     assembly / assemblyJarName := s"${moduleName.value}.jar",
 //    assembly / assemblyJarName := s"${moduleName.value}-${version.value}.jar",
     assembly / assemblyMergeStrategy := {

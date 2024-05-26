@@ -36,11 +36,8 @@ class StdoutSink(val maxBytes: Int, streamName: String) extends Sink {
 //          println(Base64.encodeBase64String(e))
         }
       case "err" =>
-        ()
-//        println(s"StdoutSink.err: ${events.size}")
         events.foreach { e =>
-          val _ = Base64.encodeBase64String(e)
-//          Console.err.println(Base64.encodeBase64String(e))
+          Console.err.println(Base64.encodeBase64String(e))
         }
     }
 
