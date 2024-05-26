@@ -64,42 +64,65 @@ class CollectorServiceSpec2 extends Specification {
   def deserializer = new TDeserializer()
 
   "The collector service (analytics.js)" should {
+    def runTest(body: io.circe.Json, path: String) = {
+      val ProbeService(s, good, bad) = probeService()
+      val response = s.cookie(
+        queryString = None,
+        body = Option(body.noSpaces),
+        path = path,
+        cookie = None,
+        userAgent = None,
+        refererUri = None,
+        hostname = "h",
+        ip = RemoteAddress.Unknown,
+        request = HttpRequest(),
+        pixelExpected = false,
+        doNotTrack = false,
+        analyticsJsBridge = true
+      )
+
+      response.status.isSuccess() must beTrue
+
+//      val actualEvent = good.storedRawEvents.head
+//      val decoded     = new CollectorPayload
+//      val decoder     = new org.apache.thrift.TDeserializer
+//      decoder.deserialize(decoded, actualEvent)
+
+      //        val actualJson = io.circe.parser.parse(decoded.body).right.get.noSpacesSortKeys
+      //        val expectedJson = io.circe.parser.parse(body).right.get.noSpacesSortKeys
+
+//      val encoder = new org.apache.thrift.TSerializer(new org.apache.thrift.protocol.TSimpleJSONProtocol.Factory)
+//      val output  = encoder.serialize(decoded)
+//      println(new String(output))
+
+      //        actualJson must be_==(expectedJson)
+      good.storedRawEvents must have size 1
+      bad.storedRawEvents must have size 0
+    }
+
     "cookie" in {
-      "accepts a pageView payload" in {
-        val body                       = AnalyticsJsFixture.pagePayload.noSpaces
-        val ProbeService(s, good, bad) = probeService()
-        val response = s.cookie(
-          queryString = None,
-          body = Option(body),
-          path = "v1/p",
-          cookie = None,
-          userAgent = None,
-          refererUri = None,
-          hostname = "h",
-          ip = RemoteAddress.Unknown,
-          request = HttpRequest(),
-          pixelExpected = false,
-          doNotTrack = false,
-          analyticsJsBridge = true
-        )
+      "accepts a page payload" in {
+        runTest(AnalyticsJsFixture.pagePayload, "v1/p")
+      }
 
-        response.status.isSuccess() must beTrue
+      "accept a screen event" in {
+        runTest(AnalyticsJsFixture.screenPayload, "v1/s")
+      }
 
-        val actualEvent = good.storedRawEvents.head
-        val decoded     = new CollectorPayload
-        val decoder     = new org.apache.thrift.TDeserializer
-        decoder.deserialize(decoded, actualEvent)
+      "accept a group event" in {
+        runTest(AnalyticsJsFixture.groupPayload, "v1/g")
+      }
 
-//        val actualJson = io.circe.parser.parse(decoded.body).right.get.noSpacesSortKeys
-//        val expectedJson = io.circe.parser.parse(body).right.get.noSpacesSortKeys
+      "accept an alias event" in {
+        runTest(AnalyticsJsFixture.aliasPayload, "v1/a")
+      }
 
-        val encoder = new org.apache.thrift.TSerializer(new org.apache.thrift.protocol.TSimpleJSONProtocol.Factory)
-        val output  = encoder.serialize(decoded)
-        println(new String(output))
+      "accept an identify event" in {
+        runTest(AnalyticsJsFixture.identifyPayload, "v1/i")
+      }
 
-//        actualJson must be_==(expectedJson)
-        good.storedRawEvents must have size 1
-        bad.storedRawEvents must have size 0
+      "accept a track event" in {
+        runTest(AnalyticsJsFixture.trackPayload, "v1/t")
       }
     }
   }
