@@ -200,7 +200,6 @@ trait Collector {
           secureEndpoint(metricRegistry)
         )
       case _ =>
-        println(s"run: SSLConfig(enable=false,redirect=false)")
         List(unsecureEndpoint(collectorRoute.collectorRoute, metricRegistry))
     }
 
