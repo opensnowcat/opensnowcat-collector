@@ -22,19 +22,16 @@ import org.apache.thrift.{TDeserializer, TSerializer}
 import scala.collection.immutable.Seq
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
-
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers._
 import akka.http.scaladsl.model.headers.CacheDirectives._
 import cats.data.NonEmptyList
 import io.circe._
 import io.circe.parser._
-
 import com.snowplowanalytics.snowplow.CollectorPayload.thrift.model1.CollectorPayload
-
 import com.snowplowanalytics.snowplow.badrows.{BadRow, Failure, Payload, Processor}
+import com.snowplowanalytics.snowplow.collectors.scalastream.fixtures.AnalyticsJsFixture
 import com.snowplowanalytics.snowplow.collectors.scalastream.model._
-
 import org.specs2.mutable.Specification
 
 class CollectorServiceSpec extends Specification {
@@ -948,6 +945,71 @@ class CollectorServiceSpec extends Specification {
         service.determinePath(vendor, version1) shouldEqual expected1
         service.determinePath(vendor, version2) shouldEqual expected2
         service.determinePath(vendor, version3) shouldEqual expected3
+      }
+    }
+  }
+
+  "The collector service (analytics.js)" should {
+    def runTest(body: io.circe.Json, path: String) = {
+      val ProbeService(s, good, bad) = probeService()
+      val response = s.cookie(
+        queryString = None,
+        body = Option(body.noSpaces),
+        path = path,
+        cookie = None,
+        userAgent = None,
+        refererUri = None,
+        hostname = "h",
+        ip = RemoteAddress.Unknown,
+        request = HttpRequest(),
+        pixelExpected = false,
+        doNotTrack = false,
+        analyticsJsBridge = true
+      )
+
+      response.status.isSuccess() must beTrue
+
+      // TODO: Clean this up
+      //      val actualEvent = good.storedRawEvents.head
+      //      val decoded     = new CollectorPayload
+      //      val decoder     = new org.apache.thrift.TDeserializer
+      //      decoder.deserialize(decoded, actualEvent)
+
+      //        val actualJson = io.circe.parser.parse(decoded.body).right.get.noSpacesSortKeys
+      //        val expectedJson = io.circe.parser.parse(body).right.get.noSpacesSortKeys
+
+      //      val encoder = new org.apache.thrift.TSerializer(new org.apache.thrift.protocol.TSimpleJSONProtocol.Factory)
+      //      val output  = encoder.serialize(decoded)
+      //      println(new String(output))
+
+      //        actualJson must be_==(expectedJson)
+      good.storedRawEvents must have size 1
+      bad.storedRawEvents must have size 0
+    }
+
+    "cookie" in {
+      "accepts a page payload" in {
+        runTest(AnalyticsJsFixture.pagePayload, "v1/p")
+      }
+
+      "accept a screen event" in {
+        runTest(AnalyticsJsFixture.screenPayload, "v1/s")
+      }
+
+      "accept a group event" in {
+        runTest(AnalyticsJsFixture.groupPayload, "v1/g")
+      }
+
+      "accept an alias event" in {
+        runTest(AnalyticsJsFixture.aliasPayload, "v1/a")
+      }
+
+      "accept an identify event" in {
+        runTest(AnalyticsJsFixture.identifyPayload, "v1/i")
+      }
+
+      "accept a track event" in {
+        runTest(AnalyticsJsFixture.trackPayload, "v1/t")
       }
     }
   }

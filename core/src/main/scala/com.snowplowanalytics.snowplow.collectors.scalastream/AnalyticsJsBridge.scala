@@ -26,13 +26,13 @@ object AnalyticsJsBridge {
   ) =
     // TODO: Should we use a regex for the accepted segments?
     path("v1" / Segment) { segment =>
-      val path          = collectorService.determinePath("v1", segment)
+      val path = collectorService.determinePath("v1", segment)
+      // identify, track, page, screen, group, alias
       val validSegments = "itpsga"
       if (segment.length == 1 && validSegments.contains(segment))
         post {
           extractContentType { ct =>
             entity(as[String]) { body =>
-              println(s"ZZZ: analytics.js bridge -> cookie")
               val r = collectorService.cookie(
                 queryString = queryString,
                 body = Some(body),
