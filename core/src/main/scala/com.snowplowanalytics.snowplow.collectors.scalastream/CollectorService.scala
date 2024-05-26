@@ -113,14 +113,10 @@ class CollectorService(
     spAnonymous: Option[String],
     analyticsJsBridge: Boolean = false
   ): HttpResponse = {
-//    def log(msg: String) = if (analyticsJsBridge) println(s"cookie: $msg")
-//    log(s"cookie, analyticsJsBridge=$analyticsJsBridge")
     val (ipAddress, partitionKey) = ipAndPartitionKey(ip, config.streams.useIpAddressAsPartitionKey)
-//    log(s"cookie - ipAddress=$ipAddress, partitionKey=$partitionKey, queryString=$queryString")
 
     extractQueryParams(queryString) match {
       case Right(params) =>
-//        println(s"cookie.right - params=$params")
         val redirect = path.startsWith("/r/")
 
         val nuidOpt  = networkUserId(request, cookie, spAnonymous)
@@ -149,7 +145,6 @@ class CollectorService(
             spAnonymous,
             analyticsJsBridge = analyticsJsBridge
           )
-//        println(s"cookie.right: sink=${!bounce && !doNotTrack}, event=${event}")
         // we don't store events in case we're bouncing
         if (!bounce && !doNotTrack) sinkEvent(event, partitionKey)
 
@@ -161,9 +156,6 @@ class CollectorService(
             accessControlAllowOriginHeader(request),
             `Access-Control-Allow-Credentials`(true)
           )
-
-//        println(s"cookie.right - headers")
-        headers.foreach(println)
 
         buildHttpResponse(
           event,
@@ -177,14 +169,12 @@ class CollectorService(
         )
 
       case Left(error) =>
-        println(s"cookie.error - error=$error")
         val badRow = BadRow.GenericError(
           Processor(appName, appVersion),
           Failure.GenericFailure(Instant.now(), NonEmptyList.one(error.getMessage)),
           Payload.RawPayload(queryString.getOrElse(""))
         )
 
-        println(s"cookie.error - sinks.bad.isHealthy=${sinks.bad.isHealthy}]")
         if (sinks.bad.isHealthy) {
           sinkBad(badRow, partitionKey)
           HttpResponse(StatusCodes.OK)
@@ -259,13 +249,7 @@ class CollectorService(
     spAnonymous: Option[String],
     analyticsJsBridge: Boolean = false
   ): CollectorPayload = {
-    val tpe = if (analyticsJsBridge) {
-      "iglu:com.segment/analyticsjs/jsonschema/1-0-0"
-//      "iglu:com.snowplowanalytics.snowplow/CollectorPayload/thrift/1-0-0"
-    } else {
-      "iglu:com.snowplowanalytics.snowplow/CollectorPayload/thrift/1-0-0"
-    }
-
+    // TODO: Remove noisy logs, validate json payload
     val customBody = if (analyticsJsBridge) {
       val b = io
         .circe
@@ -302,9 +286,8 @@ class CollectorService(
       body
     }
 
-//    println(s"ZZZ: Event: ${body.getOrElse("")}")
     val e = new CollectorPayload(
-      tpe,
+      "iglu:com.snowplowanalytics.snowplow/CollectorPayload/thrift/1-0-0",
       ipAddress,
       System.currentTimeMillis,
       "UTF-8",

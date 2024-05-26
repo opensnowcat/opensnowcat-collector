@@ -52,12 +52,9 @@ trait CollectorRoute {
     doNotTrack(collectorService.doNotTrackCookie) { dnt =>
       cookieIfWanted(collectorService.cookieName) { reqCookie =>
         val cookie = reqCookie.map(_.toCookie)
-//        println(s"cookieIfWanted -> cookie=${cookie}")
         headers { (userAgent, refererURI, rawRequestURI, spAnonymous) =>
           val qs = queryString(rawRequestURI)
-//          println(s"cookieIfWanted -> qs=${qs}")
           extractors(spAnonymous) { (host, ip, request) =>
-//            println(s"cookieIfWanted -> extractors=($host, $ip, $request)")
             val analyticsJsRoute = AnalyticsJsBridge.routes(
               queryString = qs,
               cookie = cookie,
