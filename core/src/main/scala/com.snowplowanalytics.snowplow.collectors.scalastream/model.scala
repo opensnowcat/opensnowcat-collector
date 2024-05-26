@@ -211,7 +211,8 @@ package model {
   )
 
   final case class ExperimentalConfig(
-    warmup: WarmupConfig
+    warmup: WarmupConfig,
+    enableAnalyticsJsBridge: Boolean = false
   )
 
   final case class CollectorConfig(

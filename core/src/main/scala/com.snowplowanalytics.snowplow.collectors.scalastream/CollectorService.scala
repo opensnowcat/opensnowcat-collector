@@ -61,6 +61,7 @@ trait Service {
   def doNotTrackCookie: Option[DntCookieMatcher]
   def determinePath(vendor: String, version: String): String
   def enableDefaultRedirect: Boolean
+  def enableAnalyticsJsBridge: Boolean
   def sinksHealthy: Boolean
 }
 
@@ -82,10 +83,11 @@ class CollectorService(
   private val collector = s"$appName-$appVersion-" +
     config.streams.sink.getClass.getSimpleName.toLowerCase
 
-  override val cookieName            = config.cookieName
-  override val doNotTrackCookie      = config.doNotTrackHttpCookie
-  override val enableDefaultRedirect = config.enableDefaultRedirect
-  override def sinksHealthy          = sinks.good.isHealthy && sinks.bad.isHealthy
+  override val cookieName              = config.cookieName
+  override val doNotTrackCookie        = config.doNotTrackHttpCookie
+  override val enableDefaultRedirect   = config.enableDefaultRedirect
+  override val enableAnalyticsJsBridge = config.experimental.enableAnalyticsJsBridge
+  override def sinksHealthy            = sinks.good.isHealthy && sinks.bad.isHealthy
 
   private val spAnonymousNuid = "00000000-0000-0000-0000-000000000000"
 

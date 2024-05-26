@@ -27,7 +27,7 @@ import com.snowplowanalytics.snowplow.collectors.scalastream.model.DntCookieMatc
 import org.specs2.mutable.Specification
 
 class CollectorRouteSpec extends Specification with Specs2RouteTest {
-  val mkRoute = (withRedirects: Boolean, spAnonymous: Option[String]) =>
+  val mkRoute = (withRedirects: Boolean, spAnonymous: Option[String], analyticsJsBridge: Boolean) =>
     new CollectorRoute {
       override val collectorService = new Service {
         def preflightResponse(req: HttpRequest): HttpResponse =
@@ -60,15 +60,18 @@ class CollectorRouteSpec extends Specification with Specs2RouteTest {
         def doNotTrackCookie: Option[DntCookieMatcher]             = None
         def determinePath(vendor: String, version: String): String = "/p1/p2"
         def enableDefaultRedirect: Boolean                         = withRedirects
-        def sinksHealthy: Boolean                                  = true
+
+        def enableAnalyticsJsBridge: Boolean = analyticsJsBridge
+        def sinksHealthy: Boolean            = true
       }
       override val healthService = new HealthService {
         def isHealthy: Boolean = true
       }
     }
-  val route                      = mkRoute(true, None)
-  val routeWithoutRedirects      = mkRoute(false, None)
-  val routeWithAnonymousTracking = mkRoute(true, Some("*"))
+  val route                      = mkRoute(true, None, false)
+  val routeWithoutRedirects      = mkRoute(false, None, false)
+  val routeWithAnonymousTracking = mkRoute(true, Some("*"), false)
+  val routeWithAnalyticsJs       = mkRoute(true, None, true)
 
   "The collector <> analytics.js bridge route" should {
     def assertResponse(response: String) = {
@@ -81,54 +84,49 @@ class CollectorRouteSpec extends Specification with Specs2RouteTest {
 
     "accept an identify event" in {
       val event = AnalyticsJsFixture.identifyPayload.noSpaces
-      Post("/v1/i", event) ~> route.collectorRoute ~> check {
+      Post("/v1/i", event) ~> routeWithAnalyticsJs.collectorRoute ~> check {
         assertResponse(responseAs[String])
       }
     }
 
     "accept a track event" in {
       val event = AnalyticsJsFixture.trackPayload.noSpaces
-      Post("/v1/t", event) ~> route.collectorRoute ~> check {
+      Post("/v1/t", event) ~> routeWithAnalyticsJs.collectorRoute ~> check {
         assertResponse(responseAs[String])
       }
     }
 
     "accept a page event" in {
       val event = AnalyticsJsFixture.pagePayload.noSpaces
-      Post("/v1/p", event) ~> route.collectorRoute ~> check {
+      Post("/v1/p", event) ~> routeWithAnalyticsJs.collectorRoute ~> check {
         assertResponse(responseAs[String])
-        // TODO:
-        // analytics.identify('user_123')
-        // We send a server-side cookie ajs_user_id with the value user_123
-        //
-        // There is a chance this is for a different route
       }
     }
 
     "accept a screen event" in {
       val event = AnalyticsJsFixture.screenPayload.noSpaces
-      Post("/v1/s", event) ~> route.collectorRoute ~> check {
+      Post("/v1/s", event) ~> routeWithAnalyticsJs.collectorRoute ~> check {
         assertResponse(responseAs[String])
       }
     }
 
     "accept a group event" in {
       val event = AnalyticsJsFixture.groupPayload.noSpaces
-      Post("/v1/g", event) ~> route.collectorRoute ~> check {
+      Post("/v1/g", event) ~> routeWithAnalyticsJs.collectorRoute ~> check {
         assertResponse(responseAs[String])
       }
     }
 
     "accept an alias event" in {
       val event = AnalyticsJsFixture.aliasPayload.noSpaces
-      Post("/v1/a", event) ~> route.collectorRoute ~> check {
+      Post("/v1/a", event) ~> routeWithAnalyticsJs.collectorRoute ~> check {
         assertResponse(responseAs[String])
       }
     }
 
     "reject non analytics.js path" in {
       val event = AnalyticsJsFixture.aliasPayload.noSpaces
-      Post("/v1/x", event) ~> route.collectorRoute ~> check {
+      Post("/v1/x", event) ~> routeWithAnalyticsJs.collectorRoute ~> check {
         status.isFailure() must beTrue
       }
     }
