@@ -11,6 +11,9 @@ object AnalyticsJsBridge {
 
   val jsonResponse: Json = Json.fromJsonObject(JsonObject("success" -> Json.fromBoolean(true)))
 
+  private val Vendor  = "com.segment"
+  private val Version = "v1"
+
   def routes(
     queryString: Option[String],
     cookie: Option[HttpCookie],
@@ -25,8 +28,8 @@ object AnalyticsJsBridge {
     collectorService: Service
   ) =
     // TODO: Should we use a regex for the accepted segments?
-    path("v1" / Segment) { segment =>
-      val path = collectorService.determinePath("v1", segment)
+    path(Vendor / Version / Segment) { segment =>
+      val path = collectorService.determinePath(Vendor, segment)
       // identify, track, page, screen, group, alias
       val validSegments = "itpsga"
       if (segment.length == 1 && validSegments.contains(segment))

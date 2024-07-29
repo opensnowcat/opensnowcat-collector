@@ -84,49 +84,56 @@ class CollectorRouteSpec extends Specification with Specs2RouteTest {
 
     "accept an identify event" in {
       val event = AnalyticsJsFixture.identifyPayload.noSpaces
-      Post("/v1/i", event) ~> routeWithAnalyticsJs.collectorRoute ~> check {
+      Post("/com.segment/v1/i", event) ~> routeWithAnalyticsJs.collectorRoute ~> check {
         assertResponse(responseAs[String])
       }
     }
 
     "accept a track event" in {
       val event = AnalyticsJsFixture.trackPayload.noSpaces
-      Post("/v1/t", event) ~> routeWithAnalyticsJs.collectorRoute ~> check {
+      Post("/com.segment/v1/t", event) ~> routeWithAnalyticsJs.collectorRoute ~> check {
         assertResponse(responseAs[String])
       }
     }
 
     "accept a page event" in {
       val event = AnalyticsJsFixture.pagePayload.noSpaces
-      Post("/v1/p", event) ~> routeWithAnalyticsJs.collectorRoute ~> check {
+      Post("/com.segment/v1/p", event) ~> routeWithAnalyticsJs.collectorRoute ~> check {
         assertResponse(responseAs[String])
       }
     }
 
     "accept a screen event" in {
       val event = AnalyticsJsFixture.screenPayload.noSpaces
-      Post("/v1/s", event) ~> routeWithAnalyticsJs.collectorRoute ~> check {
+      Post("/com.segment/v1/s", event) ~> routeWithAnalyticsJs.collectorRoute ~> check {
         assertResponse(responseAs[String])
       }
     }
 
     "accept a group event" in {
       val event = AnalyticsJsFixture.groupPayload.noSpaces
-      Post("/v1/g", event) ~> routeWithAnalyticsJs.collectorRoute ~> check {
+      Post("/com.segment/v1/g", event) ~> routeWithAnalyticsJs.collectorRoute ~> check {
         assertResponse(responseAs[String])
       }
     }
 
     "accept an alias event" in {
       val event = AnalyticsJsFixture.aliasPayload.noSpaces
-      Post("/v1/a", event) ~> routeWithAnalyticsJs.collectorRoute ~> check {
+      Post("/com.segment/v1/a", event) ~> routeWithAnalyticsJs.collectorRoute ~> check {
         assertResponse(responseAs[String])
       }
     }
 
     "reject non analytics.js path" in {
       val event = AnalyticsJsFixture.aliasPayload.noSpaces
-      Post("/v1/x", event) ~> routeWithAnalyticsJs.collectorRoute ~> check {
+      Post("/com.segment/v1/x", event) ~> routeWithAnalyticsJs.collectorRoute ~> check {
+        status.isFailure() must beTrue
+      }
+    }
+
+    "reject an unsupported version from analytics.js" in {
+      val event = AnalyticsJsFixture.aliasPayload.noSpaces
+      Post("/com.segment/v2/p", event) ~> routeWithAnalyticsJs.collectorRoute ~> check {
         status.isFailure() must beTrue
       }
     }
