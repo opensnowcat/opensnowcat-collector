@@ -96,7 +96,11 @@ class CollectorService(
     */
   override def determinePath(vendor: String, version: String): String = {
     val original = s"/$vendor/$version"
-    config.paths.getOrElse(original, original)
+    val result   = config.paths.getOrElse(original, original)
+
+    println(s"determinePath($vendor, $version) = $result")
+
+    result
   }
 
   override def cookie(
@@ -251,39 +255,11 @@ class CollectorService(
     spAnonymous: Option[String],
     analyticsJsBridge: Boolean = false
   ): CollectorPayload = {
-    // TODO: Remove noisy logs, validate json payload
     val customBody = if (analyticsJsBridge) {
-      val b = io
-        .circe
-        .JsonObject(
-          "schema" -> io.circe.Json.fromString("iglu:com.snowplowanalytics.snowplow/contexts/jsonschema/1-0-0"),
-          "data" -> io
-            .circe
-            .Json
-            .fromValues(
-              List(
-                io.circe
-                  .Json
-                  .fromJsonObject(
-                    io.circe
-                      .JsonObject(
-                        "schema" -> io.circe.Json.fromString("iglu:com.segment/analyticsjs/jsonschema/1-0-0"),
-                        "data" -> io
-                          .circe
-                          .Json
-                          .fromJsonObject(
-                            io.circe
-                              .JsonObject(
-                                "payload" -> io.circe.parser.parse(body.getOrElse("{}")).right.get
-                              )
-                          )
-                      )
-                  )
-              )
-            )
-        )
-      println(io.circe.Json.fromJsonObject(b).spaces2SortKeys)
-      Some(io.circe.Json.fromJsonObject(b).noSpaces)
+      // TODO: Remove get
+      val jsonBody = io.circe.parser.parse(body.getOrElse("{}")).right.get
+      val payload  = AnalyticsJsBridge.createSnowplowPayload(jsonBody)
+      Some(payload.noSpaces)
     } else {
       body
     }
