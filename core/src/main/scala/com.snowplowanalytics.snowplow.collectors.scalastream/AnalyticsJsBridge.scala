@@ -30,6 +30,8 @@ object AnalyticsJsBridge {
     path(Vendor / Version / Segment) { segment =>
       // ideally, we should use /com.segment/v1 as the path but this requires a remote adapter on the enrich side
       // instead, we are reusing the snowplow event type while attaching the segment payload
+      //
+      // consider using a path-mapping config instead.
       val path = "/com.snowplowanalytics.snowplow/tp2"
 
       // identify, track, page, screen, group, alias

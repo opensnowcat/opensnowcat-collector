@@ -96,11 +96,7 @@ class CollectorService(
     */
   override def determinePath(vendor: String, version: String): String = {
     val original = s"/$vendor/$version"
-    val result   = config.paths.getOrElse(original, original)
-
-    println(s"determinePath($vendor, $version) = $result")
-
-    result
+    config.paths.getOrElse(original, original)
   }
 
   override def cookie(
@@ -256,9 +252,12 @@ class CollectorService(
     analyticsJsBridge: Boolean = false
   ): CollectorPayload = {
     val customBody = if (analyticsJsBridge) {
-      // TODO: Remove get
-      val jsonBody = io.circe.parser.parse(body.getOrElse("{}")).right.get
-      val payload  = AnalyticsJsBridge.createSnowplowPayload(jsonBody)
+      val jsonBody = io
+        .circe
+        .parser
+        .parse(body.getOrElse("{}"))
+        .getOrElse(throw new RuntimeException("The request body must be a JSON-encoded Analytic.js payload"))
+      val payload = AnalyticsJsBridge.createSnowplowPayload(jsonBody)
       Some(payload.noSpaces)
     } else {
       body
