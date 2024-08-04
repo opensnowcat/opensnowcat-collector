@@ -534,6 +534,9 @@ class CollectorServiceSpec extends Specification {
       "send back ok otherwise" in {
         service.buildUsualHttpResponse(false, true) shouldEqual HttpResponse(200, entity = "ok")
       }
+      "send back the analytics.js supported response" in {
+        service.buildUsualHttpResponse(false, true, true) shouldEqual HttpResponse(200, entity = """{"success":true}""")
+      }
     }
 
     "buildRedirectHttpResponse" in {
@@ -967,33 +970,49 @@ class CollectorServiceSpec extends Specification {
         analyticsJsBridge = true
       )
 
+      good.storedRawEvents must have size 1
+
       response.status.isSuccess() must beTrue
 
-      // TODO: Clean this up
-      //      val actualEvent = good.storedRawEvents.head
-      //      val decoded     = new CollectorPayload
-      //      val decoder     = new org.apache.thrift.TDeserializer
-      //      decoder.deserialize(decoded, actualEvent)
+      // allow decoding the payload
+      val decoded     = new CollectorPayload
+      val decoder     = new org.apache.thrift.TDeserializer
+      val actualEvent = good.storedRawEvents.head
+      decoder.deserialize(decoded, actualEvent)
+      decoded.body.isEmpty must beFalse
 
-      //        val actualJson = io.circe.parser.parse(decoded.body).right.get.noSpacesSortKeys
-      //        val expectedJson = io.circe.parser.parse(body).right.get.noSpacesSortKeys
-
-      //      val encoder = new org.apache.thrift.TSerializer(new org.apache.thrift.protocol.TSimpleJSONProtocol.Factory)
-      //      val output  = encoder.serialize(decoded)
-      //      println(new String(output))
-
-      //        actualJson must be_==(expectedJson)
-      good.storedRawEvents must have size 1
       bad.storedRawEvents must have size 0
     }
 
     "cookie" in {
-      "accepts a page payload" in {
-        runTest(AnalyticsJsFixture.pagePayload, "v1/p")
+      "reject a screen event (it does not have the required fields" in {
+        val ProbeService(s, _, _) = probeService()
+
+        try {
+          val response = s.cookie(
+            queryString = None,
+            body = Option(AnalyticsJsFixture.screenPayload.noSpaces),
+            path = "v1/s",
+            cookie = None,
+            userAgent = None,
+            refererUri = None,
+            hostname = "h",
+            ip = RemoteAddress.Unknown,
+            request = HttpRequest(),
+            pixelExpected = false,
+            doNotTrack = false,
+            analyticsJsBridge = true
+          )
+          // this will cause the test to fail as expected
+          response.status.isFailure() must beTrue
+        } catch {
+          case ex: Throwable =>
+            ex.getMessage mustEqual "context.library.version is required"
+        }
       }
 
-      "accept a screen event" in {
-        runTest(AnalyticsJsFixture.screenPayload, "v1/s")
+      "accepts a page payload" in {
+        runTest(AnalyticsJsFixture.pagePayload, "v1/p")
       }
 
       "accept a group event" in {
