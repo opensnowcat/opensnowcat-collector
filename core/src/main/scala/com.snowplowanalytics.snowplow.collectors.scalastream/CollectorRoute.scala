@@ -75,8 +75,6 @@ trait CollectorRoute {
               post {
                 extractContentType { ct =>
                   entity(as[String]) { body =>
-                    println("ZZZ: data")
-                    println(s"ZZZ: body=$body")
                     val r = collectorService.cookie(
                       qs,
                       Some(body),
