@@ -24,20 +24,20 @@ object Dependencies {
 
   object V {
     // Java
-    val awsSdk      = "1.12.765"
-    val pubsub      = "1.131.0"
-    val kafka       = "3.7.1"
+    val awsSdk      = "1.12.767"
+    val pubsub      = "1.132.0"
+    val kafka       = "3.8.0"
     val mskAuth     = "2.2.0"
     val nsqClient   = "1.3.0"
     val jodaTime    = "2.12.7"
-    val slf4j       = "2.0.13"
+    val slf4j       = "2.0.16"
     val log4j       = "2.23.1"
     val config      = "1.4.3"
     val rabbitMQ    = "5.21.0"
     val jackson     = "2.17.2"
     val thrift      = "0.15.0"
     val jnrUnixsock = "0.38.22"
-    val protobuf    = "3.25.3"
+    val protobuf    = "3.25.4"
 
     // Scala
     val collectorPayload = "0.0.0"
