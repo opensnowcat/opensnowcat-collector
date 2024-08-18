@@ -14,6 +14,16 @@ object AnalyticsJsBridge {
   private val Vendor  = "com.segment"
   private val Version = "v1"
 
+  sealed trait EventType extends Product with Serializable
+  object EventType {
+    case object Page extends EventType
+    case object Identify extends EventType
+    case object Track extends EventType
+    case object Group extends EventType
+    case object Alias extends EventType
+    case object Screen extends EventType
+  }
+
   def routes(
     queryString: Option[String],
     cookie: Option[HttpCookie],
@@ -35,8 +45,16 @@ object AnalyticsJsBridge {
       val path = "/com.snowplowanalytics.snowplow/tp2"
 
       // identify, track, page, screen, group, alias
-      val validSegments = "itpsga"
-      if (segment.length == 1 && validSegments.contains(segment))
+      val eventType = segment match {
+        case "i" => Some(AnalyticsJsBridge.EventType.Identify)
+        case "t" => Some(AnalyticsJsBridge.EventType.Track)
+        case "p" => Some(AnalyticsJsBridge.EventType.Page)
+        case "s" => Some(AnalyticsJsBridge.EventType.Screen)
+        case "g" => Some(AnalyticsJsBridge.EventType.Group)
+        case "a" => Some(AnalyticsJsBridge.EventType.Alias)
+        case _   => None
+      }
+      if (eventType.isDefined)
         post {
           extractContentType { ct =>
             // analytics.js is sending "text/plain" content type which is not supported by the snowplow schema
@@ -58,7 +76,7 @@ object AnalyticsJsBridge {
                 doNotTrack = doNotTrack,
                 contentType = normalizedContentType,
                 spAnonymous = spAnonymous,
-                analyticsJsBridge = true
+                analyticsJsEvent = eventType
               )
               complete(r)
             }
@@ -67,22 +85,28 @@ object AnalyticsJsBridge {
       else complete(HttpResponse(StatusCodes.BadRequest))
     }
 
-  def createSnowplowPayload(body: Json): Json = {
+  def createSnowplowPayload(body: Json, eventType: EventType): Json = {
     import io.circe._
-    import java.util.Base64
-    import java.nio.charset.StandardCharsets
 
-    def customContext = {
+    import java.nio.charset.StandardCharsets
+    import java.util.Base64
+
+    val eventSchema = eventType match {
+      case EventType.Page     => "iglu:com.segment/page/jsonschema/1-0-0"
+      case EventType.Identify => "iglu:com.segment/traits/jsonschema/1-0-0"
+      case EventType.Track    => "iglu:com.segment/event/jsonschema/1-0-0"
+      case EventType.Group    => "iglu:com.segment/group/jsonschema/1-0-0"
+      case EventType.Alias    => "iglu:com.segment/alias/jsonschema/1-0-0"
+      case EventType.Screen   => "iglu:com.segment/screen/jsonschema/1-0-0"
+    }
+
+    def eventPayload = {
       val jsonObject = JsonObject(
-        "schema" -> Json.fromString("iglu:com.snowplowanalytics.snowplow/contexts/jsonschema/1-0-0"),
-        "data" -> Json.fromValues(
-          List(
-            Json.fromJsonObject(
-              JsonObject(
-                "schema" -> Json.fromString("iglu:com.segment/analyticsjs/jsonschema/1-0-0"),
-                "data"   -> Json.fromJsonObject(io.circe.JsonObject("payload" -> body))
-              )
-            )
+        "schema" -> Json.fromString("iglu:com.snowplowanalytics.snowplow/unstruct_event/jsonschema/1-0-0"),
+        "data" -> Json.fromJsonObject(
+          JsonObject(
+            "schema" -> Json.fromString(eventSchema),
+            "data"   -> body
           )
         )
       )
@@ -104,16 +128,35 @@ object AnalyticsJsBridge {
       .getOrElse(throw new RuntimeException("context.library.version is required"))
 
     val initialData = JsonObject(
-      // page view
-      "e" -> Json.fromString("pv"),
+      // self-describing event
+      "e" -> Json.fromString("ue"),
       // tracker version (required)
       "tv" -> Json.fromString(trackerVersion),
       // platform (required), must be web, mob, app. in this case, analytics.js is for the web only
       "p" -> Json.fromString("web"),
-      // base64-encoded context
-      "cx" -> Json.fromString(
-        Base64.getEncoder.encodeToString(customContext.noSpaces.getBytes(StandardCharsets.UTF_8))
+      // base64-encoded event
+      "ue_px" -> Json.fromString(
+        Base64.getEncoder.encodeToString(eventPayload.noSpaces.getBytes(StandardCharsets.UTF_8))
       )
+      // TODO: Should we set these values?
+//      // event id, TODO shall we get this from client?
+//      "eid" -> Json.fromString(java.util.UUID.randomUUID().toString),
+//      // The tracker namespace, TODO: where?
+//      "tna" -> Json.fromString("sp"),
+//      // App id TODO
+//      "aid" -> Json.fromString("appid"),
+//      // domain userid TODO
+//      "duid" -> Json.fromString(java.util.UUID.randomUUID().toString),
+//      // domain sessionid TODO
+//      "sid" -> Json.fromString(java.util.UUID.randomUUID().toString),
+//      // domain_sessionidx TODO
+//      "vid" -> Json.fromString("1"),
+//      // dvce_created_tstamp TODO
+//      "dtm" -> Json.fromString("1723984661438"),
+//      // br_cookies
+//      "cookie" -> Json.fromString("1"),
+      // dvce_sent_tstamp
+//            "stm" -> Json.fromString("1723984661440"),
     )
 
     // merge optional arguments
@@ -122,8 +165,6 @@ object AnalyticsJsBridge {
       case (acc, _)                  => acc
     }
 
-    // TODO: Should we use a self-describing event instead?
-    // https://docs.snowplow.io/docs/collecting-data/collecting-from-own-applications/snowplow-tracker-protocol/going-deeper/event-parameters/#self-describing-events
     val jsonObject = JsonObject(
       "schema" -> Json.fromString("iglu:com.snowplowanalytics.snowplow/payload_data/jsonschema/1-0-4"),
       "data" -> Json.fromValues(

@@ -25,7 +25,7 @@ object AnalyticsJsFixture {
   )
 
   val screenPayload = unsafeJson(
-    """{"anonymousId":"3a12eab0-bca7-11e4-8dfc-aa07a5b093db","channel":"mobile","context":{"ip":"8.8.8.8"},"integrations":{"All":true,"Mixpanel":false,"Salesforce":false},"messageId":"022bb90c-bbac-11e4-8dfc-aa07a5b093db","name":"Dropdown selected","properties":{"variation":"blue"},"receivedAt":"2024-05-17T20:52:05.029Z","sentAt":"2024-05-17T20:52:04.796Z","timestamp":"2024-05-17T20:52:04.796Z","type":"screen","userId":"97980cfea0067","version":"1.1"}"""
+    """{"timestamp":"2024-08-18T15:28:30.038Z","integrations":{},"type":"screen","properties":{},"name":"Home","context":{"page":{"path":"/segment.html","referrer":"","search":"","title":"Fingerprint Inspection","url":"https://b0c3-85-152-106-87.ngrok-free.app/segment.html"},"userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36","userAgentData":{"brands":[{"brand":"Not)A;Brand","version":"99"},{"brand":"Google Chrome","version":"127"},{"brand":"Chromium","version":"127"}],"mobile":false,"platform":"macOS"},"locale":"en-US","library":{"name":"analytics.js","version":"next-1.70.0"},"timezone":"Europe/Madrid"},"messageId":"1723994910038-12cb10f5-3db0-4489-941c-a13d9b4fb071","anonymousId":"54f25df0-6994-40c3-ae6d-cbde641e124c","writeKey":"rWAfVSHRrcvxG0UH4vv3aFZ2dIPmv08c","userId":null,"sentAt":"2024-08-18T15:28:30.040Z","_metadata":{"bundled":["Segment.io"],"unbundled":[],"bundledIds":[]}}"""
   )
 
   private def unsafeJson(str: String): Json = io.circe.parser.parse(str).right.get

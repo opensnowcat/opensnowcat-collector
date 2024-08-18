@@ -55,7 +55,7 @@ trait Service {
     doNotTrack: Boolean,
     contentType: Option[ContentType] = None,
     spAnonymous: Option[String] = None,
-    analyticsJsBridge: Boolean = false
+    analyticsJsEvent: Option[AnalyticsJsBridge.EventType] = None
   ): HttpResponse
   def cookieName: Option[String]
   def doNotTrackCookie: Option[DntCookieMatcher]
@@ -113,7 +113,7 @@ class CollectorService(
     doNotTrack: Boolean,
     contentType: Option[ContentType] = None,
     spAnonymous: Option[String],
-    analyticsJsBridge: Boolean = false
+    analyticsJsEvent: Option[AnalyticsJsBridge.EventType] = None
   ): HttpResponse = {
     val (ipAddress, partitionKey) = ipAndPartitionKey(ip, config.streams.useIpAddressAsPartitionKey)
 
@@ -145,7 +145,7 @@ class CollectorService(
             nuid,
             ct,
             spAnonymous,
-            analyticsJsBridge = analyticsJsBridge
+            analyticsJsEvent
           )
         // we don't store events in case we're bouncing
         if (!bounce && !doNotTrack) sinkEvent(event, partitionKey)
@@ -167,7 +167,7 @@ class CollectorService(
           pixelExpected = pixelExpected,
           bounce = bounce,
           config.redirectMacro,
-          analyticsJsBridge = analyticsJsBridge
+          analyticsJsEvent
         )
 
       case Left(error) =>
@@ -249,18 +249,19 @@ class CollectorService(
     networkUserId: String,
     contentType: Option[String],
     spAnonymous: Option[String],
-    analyticsJsBridge: Boolean = false
+    analyticsJsEvent: Option[AnalyticsJsBridge.EventType] = None
   ): CollectorPayload = {
-    val customBody = if (analyticsJsBridge) {
-      val jsonBody = io
-        .circe
-        .parser
-        .parse(body.getOrElse("{}"))
-        .getOrElse(throw new RuntimeException("The request body must be a JSON-encoded Analytic.js payload"))
-      val payload = AnalyticsJsBridge.createSnowplowPayload(jsonBody)
-      Some(payload.noSpaces)
-    } else {
-      body
+    val customBody = analyticsJsEvent match {
+      case Some(eventType) =>
+        val jsonBody = io
+          .circe
+          .parser
+          .parse(body.getOrElse("{}"))
+          .getOrElse(throw new RuntimeException("The request body must be a JSON-encoded Analytic.js payload"))
+        val payload = AnalyticsJsBridge.createSnowplowPayload(jsonBody, eventType)
+        Some(payload.noSpaces)
+
+      case None => body
     }
 
     val e = new CollectorPayload(
@@ -309,13 +310,13 @@ class CollectorService(
     pixelExpected: Boolean,
     bounce: Boolean,
     redirectMacroConfig: RedirectMacroConfig,
-    analyticsJsBridge: Boolean = false
+    analyticsJsEvent: Option[AnalyticsJsBridge.EventType] = None
   ): HttpResponse =
     if (redirect) {
       val r = buildRedirectHttpResponse(event, queryParams, redirectMacroConfig)
       r.withHeaders(r.headers ++ headers)
     } else {
-      buildUsualHttpResponse(pixelExpected = pixelExpected, bounce = bounce, analyticsJsBridge = analyticsJsBridge)
+      buildUsualHttpResponse(pixelExpected = pixelExpected, bounce = bounce, analyticsJsEvent = analyticsJsEvent)
         .withHeaders(headers)
     }
 
@@ -323,19 +324,19 @@ class CollectorService(
   def buildUsualHttpResponse(
     pixelExpected: Boolean,
     bounce: Boolean,
-    analyticsJsBridge: Boolean = false
+    analyticsJsEvent: Option[AnalyticsJsBridge.EventType] = None
   ): HttpResponse =
-    (pixelExpected, bounce, analyticsJsBridge) match {
+    (pixelExpected, bounce, analyticsJsEvent) match {
       case (true, true, _) => HttpResponse(StatusCodes.Found)
       case (true, false, _) =>
         HttpResponse(entity =
           HttpEntity(contentType = ContentType(MediaTypes.`image/gif`), bytes = CollectorService.pixel)
         )
       // See https://github.com/snowplow/snowplow-javascript-tracker/issues/482
-      case (_, _, false) =>
+      case (_, _, None) =>
         HttpResponse(entity = "ok")
       // analytics.js compatible response
-      case (_, _, true) =>
+      case (_, _, Some(_)) =>
         HttpResponse(entity = AnalyticsJsBridge.jsonResponse.noSpaces)
     }
 

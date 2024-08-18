@@ -535,7 +535,10 @@ class CollectorServiceSpec extends Specification {
         service.buildUsualHttpResponse(false, true) shouldEqual HttpResponse(200, entity = "ok")
       }
       "send back the analytics.js supported response" in {
-        service.buildUsualHttpResponse(false, true, true) shouldEqual HttpResponse(200, entity = """{"success":true}""")
+        service.buildUsualHttpResponse(false, true, Some(AnalyticsJsBridge.EventType.Page)) shouldEqual HttpResponse(
+          200,
+          entity = """{"success":true}"""
+        )
       }
     }
 
@@ -953,7 +956,7 @@ class CollectorServiceSpec extends Specification {
   }
 
   "The collector service (analytics.js)" should {
-    def runTest(body: io.circe.Json, path: String) = {
+    def runTest(body: io.circe.Json, path: String, eventType: AnalyticsJsBridge.EventType) = {
       val ProbeService(s, good, bad) = probeService()
       val response = s.cookie(
         queryString = None,
@@ -967,7 +970,7 @@ class CollectorServiceSpec extends Specification {
         request = HttpRequest(),
         pixelExpected = false,
         doNotTrack = false,
-        analyticsJsBridge = true
+        analyticsJsEvent = Some(eventType)
       )
 
       good.storedRawEvents must have size 1
@@ -985,50 +988,28 @@ class CollectorServiceSpec extends Specification {
     }
 
     "cookie" in {
-      "reject a screen event (it does not have the required fields" in {
-        val ProbeService(s, _, _) = probeService()
-
-        try {
-          val response = s.cookie(
-            queryString = None,
-            body = Option(AnalyticsJsFixture.screenPayload.noSpaces),
-            path = "v1/s",
-            cookie = None,
-            userAgent = None,
-            refererUri = None,
-            hostname = "h",
-            ip = RemoteAddress.Unknown,
-            request = HttpRequest(),
-            pixelExpected = false,
-            doNotTrack = false,
-            analyticsJsBridge = true
-          )
-          // this will cause the test to fail as expected
-          response.status.isFailure() must beTrue
-        } catch {
-          case ex: Throwable =>
-            ex.getMessage mustEqual "context.library.version is required"
-        }
-      }
-
       "accepts a page payload" in {
-        runTest(AnalyticsJsFixture.pagePayload, "v1/p")
+        runTest(AnalyticsJsFixture.pagePayload, "v1/p", AnalyticsJsBridge.EventType.Page)
       }
 
       "accept a group event" in {
-        runTest(AnalyticsJsFixture.groupPayload, "v1/g")
+        runTest(AnalyticsJsFixture.groupPayload, "v1/g", AnalyticsJsBridge.EventType.Group)
       }
 
       "accept an alias event" in {
-        runTest(AnalyticsJsFixture.aliasPayload, "v1/a")
+        runTest(AnalyticsJsFixture.aliasPayload, "v1/a", AnalyticsJsBridge.EventType.Alias)
       }
 
       "accept an identify event" in {
-        runTest(AnalyticsJsFixture.identifyPayload, "v1/i")
+        runTest(AnalyticsJsFixture.identifyPayload, "v1/i", AnalyticsJsBridge.EventType.Identify)
       }
 
       "accept a track event" in {
-        runTest(AnalyticsJsFixture.trackPayload, "v1/t")
+        runTest(AnalyticsJsFixture.trackPayload, "v1/t", AnalyticsJsBridge.EventType.Track)
+      }
+
+      "accept a screen payload" in {
+        runTest(AnalyticsJsFixture.screenPayload, "v1/s", AnalyticsJsBridge.EventType.Screen)
       }
     }
   }

@@ -48,9 +48,9 @@ class CollectorRouteSpec extends Specification with Specs2RouteTest {
           doNotTrack: Boolean,
           contentType: Option[ContentType] = None,
           spAnonymous: Option[String] = spAnonymous,
-          analyticsJsBridge: Boolean = false
+          analyticsJsEvent: Option[AnalyticsJsBridge.EventType] = None
         ): HttpResponse =
-          if (analyticsJsBridge) {
+          if (analyticsJsEvent.isDefined) {
             HttpResponse(200, entity = AnalyticsJsBridge.jsonResponse.noSpaces)
           } else {
             HttpResponse(200, entity = s"cookie")
