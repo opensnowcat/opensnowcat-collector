@@ -18,6 +18,7 @@ import java.net.InetAddress
 
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers._
+import com.snowplowanalytics.snowplow.collectors.scalastream.fixtures.AnalyticsJsFixture
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.testkit.Specs2RouteTest
 
@@ -26,7 +27,7 @@ import com.snowplowanalytics.snowplow.collectors.scalastream.model.DntCookieMatc
 import org.specs2.mutable.Specification
 
 class CollectorRouteSpec extends Specification with Specs2RouteTest {
-  val mkRoute = (withRedirects: Boolean, spAnonymous: Option[String]) =>
+  val mkRoute = (withRedirects: Boolean, spAnonymous: Option[String], analyticsJsBridge: Boolean) =>
     new CollectorRoute {
       override val collectorService = new Service {
         def preflightResponse(req: HttpRequest): HttpResponse =
@@ -46,21 +47,97 @@ class CollectorRouteSpec extends Specification with Specs2RouteTest {
           pixelExpected: Boolean,
           doNotTrack: Boolean,
           contentType: Option[ContentType] = None,
-          spAnonymous: Option[String] = spAnonymous
-        ): HttpResponse                                            = HttpResponse(200, entity = s"cookie")
+          spAnonymous: Option[String] = spAnonymous,
+          analyticsJsEvent: Option[AnalyticsJsBridge.EventType] = None
+        ): HttpResponse =
+          if (analyticsJsEvent.isDefined) {
+            HttpResponse(200, entity = AnalyticsJsBridge.jsonResponse.noSpaces)
+          } else {
+            HttpResponse(200, entity = s"cookie")
+          }
+
         def cookieName: Option[String]                             = Some("name")
         def doNotTrackCookie: Option[DntCookieMatcher]             = None
         def determinePath(vendor: String, version: String): String = "/p1/p2"
         def enableDefaultRedirect: Boolean                         = withRedirects
-        def sinksHealthy: Boolean                                  = true
+
+        def enableAnalyticsJsBridge: Boolean = analyticsJsBridge
+        def sinksHealthy: Boolean            = true
       }
       override val healthService = new HealthService {
         def isHealthy: Boolean = true
       }
     }
-  val route                      = mkRoute(true, None)
-  val routeWithoutRedirects      = mkRoute(false, None)
-  val routeWithAnonymousTracking = mkRoute(true, Some("*"))
+  val route                      = mkRoute(true, None, false)
+  val routeWithoutRedirects      = mkRoute(false, None, false)
+  val routeWithAnonymousTracking = mkRoute(true, Some("*"), false)
+  val routeWithAnalyticsJs       = mkRoute(true, None, true)
+
+  "The collector <> analytics.js bridge route" should {
+    def assertResponse(response: String) = {
+      val jsonE = io.circe.parser.parse(response)
+      jsonE.isRight shouldEqual true
+      val json     = jsonE.right.get
+      val expected = AnalyticsJsBridge.jsonResponse
+      json shouldEqual expected
+    }
+
+    "accept an identify event" in {
+      val event = AnalyticsJsFixture.identifyPayload.noSpaces
+      Post("/com.segment/v1/i", event) ~> routeWithAnalyticsJs.collectorRoute ~> check {
+        assertResponse(responseAs[String])
+      }
+    }
+
+    "accept a track event" in {
+      val event = AnalyticsJsFixture.trackPayload.noSpaces
+      Post("/com.segment/v1/t", event) ~> routeWithAnalyticsJs.collectorRoute ~> check {
+        assertResponse(responseAs[String])
+      }
+    }
+
+    "accept a page event" in {
+      val event = AnalyticsJsFixture.pagePayload.noSpaces
+      Post("/com.segment/v1/p", event) ~> routeWithAnalyticsJs.collectorRoute ~> check {
+        assertResponse(responseAs[String])
+      }
+    }
+
+    "accept a screen event" in {
+      val event = AnalyticsJsFixture.screenPayload.noSpaces
+      Post("/com.segment/v1/s", event) ~> routeWithAnalyticsJs.collectorRoute ~> check {
+        assertResponse(responseAs[String])
+      }
+    }
+
+    "accept a group event" in {
+      val event = AnalyticsJsFixture.groupPayload.noSpaces
+      Post("/com.segment/v1/g", event) ~> routeWithAnalyticsJs.collectorRoute ~> check {
+        assertResponse(responseAs[String])
+      }
+    }
+
+    "accept an alias event" in {
+      val event = AnalyticsJsFixture.aliasPayload.noSpaces
+      Post("/com.segment/v1/a", event) ~> routeWithAnalyticsJs.collectorRoute ~> check {
+        assertResponse(responseAs[String])
+      }
+    }
+
+    "reject non analytics.js path" in {
+      val event = AnalyticsJsFixture.aliasPayload.noSpaces
+      Post("/com.segment/v1/x", event) ~> routeWithAnalyticsJs.collectorRoute ~> check {
+        status.isFailure() must beTrue
+      }
+    }
+
+    "reject an unsupported version from analytics.js" in {
+      val event = AnalyticsJsFixture.aliasPayload.noSpaces
+      Post("/com.segment/v2/p", event) ~> routeWithAnalyticsJs.collectorRoute ~> check {
+        status.isFailure() must beTrue
+      }
+    }
+  }
 
   "The collector route" should {
     "respond to the cors route with a preflight response" in {

@@ -22,19 +22,16 @@ import org.apache.thrift.{TDeserializer, TSerializer}
 import scala.collection.immutable.Seq
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
-
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers._
 import akka.http.scaladsl.model.headers.CacheDirectives._
 import cats.data.NonEmptyList
 import io.circe._
 import io.circe.parser._
-
 import com.snowplowanalytics.snowplow.CollectorPayload.thrift.model1.CollectorPayload
-
 import com.snowplowanalytics.snowplow.badrows.{BadRow, Failure, Payload, Processor}
+import com.snowplowanalytics.snowplow.collectors.scalastream.fixtures.AnalyticsJsFixture
 import com.snowplowanalytics.snowplow.collectors.scalastream.model._
-
 import org.specs2.mutable.Specification
 
 class CollectorServiceSpec extends Specification {
@@ -537,6 +534,12 @@ class CollectorServiceSpec extends Specification {
       "send back ok otherwise" in {
         service.buildUsualHttpResponse(false, true) shouldEqual HttpResponse(200, entity = "ok")
       }
+      "send back the analytics.js supported response" in {
+        service.buildUsualHttpResponse(false, true, Some(AnalyticsJsBridge.EventType.Page)) shouldEqual HttpResponse(
+          200,
+          entity = """{"success":true}"""
+        )
+      }
     }
 
     "buildRedirectHttpResponse" in {
@@ -948,6 +951,65 @@ class CollectorServiceSpec extends Specification {
         service.determinePath(vendor, version1) shouldEqual expected1
         service.determinePath(vendor, version2) shouldEqual expected2
         service.determinePath(vendor, version3) shouldEqual expected3
+      }
+    }
+  }
+
+  "The collector service (analytics.js)" should {
+    def runTest(body: io.circe.Json, path: String, eventType: AnalyticsJsBridge.EventType) = {
+      val ProbeService(s, good, bad) = probeService()
+      val response = s.cookie(
+        queryString = None,
+        body = Option(body.noSpaces),
+        path = path,
+        cookie = None,
+        userAgent = None,
+        refererUri = None,
+        hostname = "h",
+        ip = RemoteAddress.Unknown,
+        request = HttpRequest(),
+        pixelExpected = false,
+        doNotTrack = false,
+        analyticsJsEvent = Some(eventType)
+      )
+
+      good.storedRawEvents must have size 1
+
+      response.status.isSuccess() must beTrue
+
+      // allow decoding the payload
+      val decoded     = new CollectorPayload
+      val decoder     = new org.apache.thrift.TDeserializer
+      val actualEvent = good.storedRawEvents.head
+      decoder.deserialize(decoded, actualEvent)
+      decoded.body.isEmpty must beFalse
+
+      bad.storedRawEvents must have size 0
+    }
+
+    "cookie" in {
+      "accepts a page payload" in {
+        runTest(AnalyticsJsFixture.pagePayload, "v1/p", AnalyticsJsBridge.EventType.Page)
+      }
+
+      "accept a group event" in {
+        runTest(AnalyticsJsFixture.groupPayload, "v1/g", AnalyticsJsBridge.EventType.Group)
+      }
+
+      "accept an alias event" in {
+        runTest(AnalyticsJsFixture.aliasPayload, "v1/a", AnalyticsJsBridge.EventType.Alias)
+      }
+
+      "accept an identify event" in {
+        runTest(AnalyticsJsFixture.identifyPayload, "v1/i", AnalyticsJsBridge.EventType.Identify)
+      }
+
+      "accept a track event" in {
+        runTest(AnalyticsJsFixture.trackPayload, "v1/t", AnalyticsJsBridge.EventType.Track)
+      }
+
+      "accept a screen payload" in {
+        runTest(AnalyticsJsFixture.screenPayload, "v1/s", AnalyticsJsBridge.EventType.Screen)
       }
     }
   }

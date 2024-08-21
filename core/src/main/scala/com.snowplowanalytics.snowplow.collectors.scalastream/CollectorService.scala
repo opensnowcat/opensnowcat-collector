@@ -54,12 +54,14 @@ trait Service {
     pixelExpected: Boolean,
     doNotTrack: Boolean,
     contentType: Option[ContentType] = None,
-    spAnonymous: Option[String] = None
+    spAnonymous: Option[String] = None,
+    analyticsJsEvent: Option[AnalyticsJsBridge.EventType] = None
   ): HttpResponse
   def cookieName: Option[String]
   def doNotTrackCookie: Option[DntCookieMatcher]
   def determinePath(vendor: String, version: String): String
   def enableDefaultRedirect: Boolean
+  def enableAnalyticsJsBridge: Boolean
   def sinksHealthy: Boolean
 }
 
@@ -81,10 +83,11 @@ class CollectorService(
   private val collector = s"$appName-$appVersion-" +
     config.streams.sink.getClass.getSimpleName.toLowerCase
 
-  override val cookieName            = config.cookieName
-  override val doNotTrackCookie      = config.doNotTrackHttpCookie
-  override val enableDefaultRedirect = config.enableDefaultRedirect
-  override def sinksHealthy          = sinks.good.isHealthy && sinks.bad.isHealthy
+  override val cookieName              = config.cookieName
+  override val doNotTrackCookie        = config.doNotTrackHttpCookie
+  override val enableDefaultRedirect   = config.enableDefaultRedirect
+  override val enableAnalyticsJsBridge = config.experimental.enableAnalyticsJsBridge
+  override def sinksHealthy            = sinks.good.isHealthy && sinks.bad.isHealthy
 
   private val spAnonymousNuid = "00000000-0000-0000-0000-000000000000"
 
@@ -109,7 +112,8 @@ class CollectorService(
     pixelExpected: Boolean,
     doNotTrack: Boolean,
     contentType: Option[ContentType] = None,
-    spAnonymous: Option[String]
+    spAnonymous: Option[String],
+    analyticsJsEvent: Option[AnalyticsJsBridge.EventType] = None
   ): HttpResponse = {
     val (ipAddress, partitionKey) = ipAndPartitionKey(ip, config.streams.useIpAddressAsPartitionKey)
 
@@ -140,7 +144,8 @@ class CollectorService(
             request,
             nuid,
             ct,
-            spAnonymous
+            spAnonymous,
+            analyticsJsEvent
           )
         // we don't store events in case we're bouncing
         if (!bounce && !doNotTrack) sinkEvent(event, partitionKey)
@@ -154,7 +159,16 @@ class CollectorService(
             `Access-Control-Allow-Credentials`(true)
           )
 
-        buildHttpResponse(event, params, headers.toList, redirect, pixelExpected, bounce, config.redirectMacro)
+        buildHttpResponse(
+          event,
+          params,
+          headers.toList,
+          redirect = redirect,
+          pixelExpected = pixelExpected,
+          bounce = bounce,
+          config.redirectMacro,
+          analyticsJsEvent
+        )
 
       case Left(error) =>
         val badRow = BadRow.GenericError(
@@ -234,8 +248,22 @@ class CollectorService(
     request: HttpRequest,
     networkUserId: String,
     contentType: Option[String],
-    spAnonymous: Option[String]
+    spAnonymous: Option[String],
+    analyticsJsEvent: Option[AnalyticsJsBridge.EventType] = None
   ): CollectorPayload = {
+    val customBody = analyticsJsEvent match {
+      case Some(eventType) =>
+        val jsonBody = io
+          .circe
+          .parser
+          .parse(body.getOrElse("{}"))
+          .getOrElse(throw new RuntimeException("The request body must be a JSON-encoded Analytic.js payload"))
+        val payload = AnalyticsJsBridge.createSnowplowPayload(jsonBody, eventType)
+        Some(payload.noSpaces)
+
+      case None => body
+    }
+
     val e = new CollectorPayload(
       "iglu:com.snowplowanalytics.snowplow/CollectorPayload/thrift/1-0-0",
       ipAddress,
@@ -244,7 +272,7 @@ class CollectorService(
       collector
     )
     e.querystring = queryString.orNull
-    body.foreach(e.body = _)
+    customBody.foreach(e.body = _)
     e.path = path
     userAgent.foreach(e.userAgent = _)
     refererUri.foreach(e.refererUri = _)
@@ -281,25 +309,35 @@ class CollectorService(
     redirect: Boolean,
     pixelExpected: Boolean,
     bounce: Boolean,
-    redirectMacroConfig: RedirectMacroConfig
+    redirectMacroConfig: RedirectMacroConfig,
+    analyticsJsEvent: Option[AnalyticsJsBridge.EventType] = None
   ): HttpResponse =
     if (redirect) {
       val r = buildRedirectHttpResponse(event, queryParams, redirectMacroConfig)
       r.withHeaders(r.headers ++ headers)
     } else {
-      buildUsualHttpResponse(pixelExpected, bounce).withHeaders(headers)
+      buildUsualHttpResponse(pixelExpected = pixelExpected, bounce = bounce, analyticsJsEvent = analyticsJsEvent)
+        .withHeaders(headers)
     }
 
   /** Builds the appropriate http response when not dealing with click redirects. */
-  def buildUsualHttpResponse(pixelExpected: Boolean, bounce: Boolean): HttpResponse =
-    (pixelExpected, bounce) match {
-      case (true, true) => HttpResponse(StatusCodes.Found)
-      case (true, false) =>
+  def buildUsualHttpResponse(
+    pixelExpected: Boolean,
+    bounce: Boolean,
+    analyticsJsEvent: Option[AnalyticsJsBridge.EventType] = None
+  ): HttpResponse =
+    (pixelExpected, bounce, analyticsJsEvent) match {
+      case (true, true, _) => HttpResponse(StatusCodes.Found)
+      case (true, false, _) =>
         HttpResponse(entity =
           HttpEntity(contentType = ContentType(MediaTypes.`image/gif`), bytes = CollectorService.pixel)
         )
       // See https://github.com/snowplow/snowplow-javascript-tracker/issues/482
-      case _ => HttpResponse(entity = "ok")
+      case (_, _, None) =>
+        HttpResponse(entity = "ok")
+      // analytics.js compatible response
+      case (_, _, Some(_)) =>
+        HttpResponse(entity = AnalyticsJsBridge.jsonResponse.noSpaces)
     }
 
   /** Builds the appropriate http response when dealing with click redirects. */

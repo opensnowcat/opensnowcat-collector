@@ -279,6 +279,8 @@ collector {
       maxConnections = 2000
       maxCycles = 3
     }
+    # Enable an experimental feature to expose the routes from Segment.io, meaning that analytics.js could use collector's backend.
+    enableAnalyticsJsBridge = false
   }
 }
 

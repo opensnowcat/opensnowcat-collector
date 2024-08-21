@@ -55,8 +55,22 @@ trait CollectorRoute {
         headers { (userAgent, refererURI, rawRequestURI, spAnonymous) =>
           val qs = queryString(rawRequestURI)
           extractors(spAnonymous) { (host, ip, request) =>
+            val analyticsJsRoutes = AnalyticsJsBridge.routes(
+              queryString = qs,
+              cookie = cookie,
+              userAgent = userAgent,
+              refererUri = refererURI,
+              hostname = host,
+              ip = ip,
+              doNotTrack = dnt,
+              request = request,
+              spAnonymous = spAnonymous,
+              extractContentType = extractContentType,
+              collectorService = collectorService
+            )
+
             // get the adapter vendor and version from the path
-            path(Segment / Segment) { (vendor, version) =>
+            val collectorRoutes = path(Segment / Segment) { (vendor, version) =>
               val path = collectorService.determinePath(vendor, version)
               post {
                 extractContentType { ct =>
@@ -119,6 +133,12 @@ trait CollectorRoute {
                   complete(r)
                 }
               }
+
+            if (collectorService.enableAnalyticsJsBridge) {
+              analyticsJsRoutes ~ collectorRoutes
+            } else {
+              collectorRoutes
+            }
           }
         }
       }
