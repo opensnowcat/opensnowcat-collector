@@ -91,13 +91,15 @@ object AnalyticsJsBridge {
     import java.nio.charset.StandardCharsets
     import java.util.Base64
 
+    val appId = "ajs_bridge"
+
     val eventSchema = eventType match {
-      case EventType.Page     => "iglu:com.segment/page/jsonschema/1-0-0"
-      case EventType.Identify => "iglu:com.segment/traits/jsonschema/1-0-0"
-      case EventType.Track    => "iglu:com.segment/event/jsonschema/1-0-0"
-      case EventType.Group    => "iglu:com.segment/group/jsonschema/1-0-0"
-      case EventType.Alias    => "iglu:com.segment/alias/jsonschema/1-0-0"
-      case EventType.Screen   => "iglu:com.segment/screen/jsonschema/1-0-0"
+      case EventType.Page     => "iglu:com.segment/page/jsonschema/2-0-0"
+      case EventType.Identify => "iglu:com.segment/identify/jsonschema/1-0-0"
+      case EventType.Track    => "iglu:com.segment/track/jsonschema/1-0-0"
+      case EventType.Group    => "iglu:com.segment/group/jsonschema/2-0-0"
+      case EventType.Alias    => "iglu:com.segment/alias/jsonschema/2-0-0"
+      case EventType.Screen   => "iglu:com.segment/screen/jsonschema/2-0-0"
     }
 
     def eventPayload = {
@@ -119,7 +121,8 @@ object AnalyticsJsBridge {
     val url      = "url"  -> properties.get[String]("url")
     val page     = "page" -> properties.get[String]("page")
     val locale   = "lang" -> context.get[String]("locale")
-    val timezone = "tz"   -> context.get[String]("locale")
+    val timezone = "tz"   -> context.get[String]("timezone")
+    val userId   = "uid"  -> body.hcursor.get[String]("userId")
 
     val trackerVersion = context
       .downField("library")
@@ -128,6 +131,7 @@ object AnalyticsJsBridge {
       .getOrElse(throw new RuntimeException("context.library.version is required"))
 
     val initialData = JsonObject(
+      "aid" -> Json.fromString(appId),
       // self-describing event
       "e" -> Json.fromString("ue"),
       // tracker version (required)
@@ -138,29 +142,10 @@ object AnalyticsJsBridge {
       "ue_px" -> Json.fromString(
         Base64.getEncoder.encodeToString(eventPayload.noSpaces.getBytes(StandardCharsets.UTF_8))
       )
-      // TODO: Should we set these values?
-//      // event id, TODO shall we get this from client?
-//      "eid" -> Json.fromString(java.util.UUID.randomUUID().toString),
-//      // The tracker namespace, TODO: where?
-//      "tna" -> Json.fromString("sp"),
-//      // App id TODO
-//      "aid" -> Json.fromString("appid"),
-//      // domain userid TODO
-//      "duid" -> Json.fromString(java.util.UUID.randomUUID().toString),
-//      // domain sessionid TODO
-//      "sid" -> Json.fromString(java.util.UUID.randomUUID().toString),
-//      // domain_sessionidx TODO
-//      "vid" -> Json.fromString("1"),
-//      // dvce_created_tstamp TODO
-//      "dtm" -> Json.fromString("1723984661438"),
-//      // br_cookies
-//      "cookie" -> Json.fromString("1"),
-      // dvce_sent_tstamp
-//            "stm" -> Json.fromString("1723984661440"),
     )
 
     // merge optional arguments
-    val data = List(url, page, locale, timezone).map(x => x._1 -> x._2.toOption).foldLeft(initialData) {
+    val data = List(url, page, locale, timezone, userId).map(x => x._1 -> x._2.toOption).foldLeft(initialData) {
       case (acc, (key, Some(value))) => acc.add(key, Json.fromString(value))
       case (acc, _)                  => acc
     }
