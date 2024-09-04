@@ -535,7 +535,11 @@ class CollectorServiceSpec extends Specification {
         service.buildUsualHttpResponse(false, true) shouldEqual HttpResponse(200, entity = "ok")
       }
       "send back the analytics.js supported response" in {
-        service.buildUsualHttpResponse(false, true, Some(AnalyticsJsBridge.EventType.Page)) shouldEqual HttpResponse(
+        service.buildUsualHttpResponse(
+          false,
+          true,
+          Some(AnalyticsJsBridge.Event(AnalyticsJsBridge.EventType.Page, None, None))
+        ) shouldEqual HttpResponse(
           200,
           entity = """{"success":true}"""
         )
@@ -970,7 +974,7 @@ class CollectorServiceSpec extends Specification {
         request = HttpRequest(),
         pixelExpected = false,
         doNotTrack = false,
-        analyticsJsEvent = Some(eventType)
+        analyticsJsEvent = Some(AnalyticsJsBridge.Event(eventType, None, None))
       )
 
       good.storedRawEvents must have size 1

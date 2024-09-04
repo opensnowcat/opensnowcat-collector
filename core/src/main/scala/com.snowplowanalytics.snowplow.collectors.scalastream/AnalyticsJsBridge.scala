@@ -14,6 +14,8 @@ object AnalyticsJsBridge {
   private val Vendor  = "com.segment"
   private val Version = "v1"
 
+  case class Event(eventType: EventType, anonymousUserId: Option[String], userId: Option[String])
+
   sealed trait EventType extends Product with Serializable
   object EventType {
     case object Page extends EventType
@@ -38,54 +40,62 @@ object AnalyticsJsBridge {
     collectorService: Service
   ) =
     path(Vendor / Version / Segment) { segment =>
-      // ideally, we should use /com.segment/v1 as the path but this requires a remote adapter on the enrich side
-      // instead, we are reusing the snowplow event type while attaching the segment payload
-      //
-      // consider using a path-mapping config instead.
-      val path = "/com.snowplowanalytics.snowplow/tp2"
+      optionalCookie("ajs_anonymous_id") { ajsAnonymousUserIdCookie =>
+        optionalCookie("ajs_user_id") { ajsUserIdCookie =>
+          val anonymousUserId = ajsAnonymousUserIdCookie.map(_.toCookie().value())
+          val userId          = ajsUserIdCookie.map(_.toCookie().value())
 
-      // identify, track, page, screen, group, alias
-      val eventType = segment match {
-        case "i" => Some(AnalyticsJsBridge.EventType.Identify)
-        case "t" => Some(AnalyticsJsBridge.EventType.Track)
-        case "p" => Some(AnalyticsJsBridge.EventType.Page)
-        case "s" => Some(AnalyticsJsBridge.EventType.Screen)
-        case "g" => Some(AnalyticsJsBridge.EventType.Group)
-        case "a" => Some(AnalyticsJsBridge.EventType.Alias)
-        case _   => None
-      }
-      if (eventType.isDefined)
-        post {
-          extractContentType { ct =>
-            // analytics.js is sending "text/plain" content type which is not supported by the snowplow schema
-            val normalizedContentType =
-              ContentType.parse(ct.value.toLowerCase.replace("text/plain", "application/json")).toOption
+          // ideally, we should use /com.segment/v1 as the path but this requires a remote adapter on the enrich side
+          // instead, we are reusing the snowplow event type while attaching the segment payload
+          //
+          // consider using a path-mapping config instead.
+          val path = "/com.snowplowanalytics.snowplow/tp2"
 
-            entity(as[String]) { body =>
-              val r = collectorService.cookie(
-                queryString = queryString,
-                body = Some(body),
-                path = path,
-                cookie = cookie,
-                userAgent = userAgent,
-                refererUri = refererUri,
-                hostname = hostname,
-                ip = ip,
-                request = request,
-                pixelExpected = false,
-                doNotTrack = doNotTrack,
-                contentType = normalizedContentType,
-                spAnonymous = spAnonymous,
-                analyticsJsEvent = eventType
-              )
-              complete(r)
-            }
+          // identify, track, page, screen, group, alias
+          val eventType = segment match {
+            case "i" => Some(AnalyticsJsBridge.EventType.Identify)
+            case "t" => Some(AnalyticsJsBridge.EventType.Track)
+            case "p" => Some(AnalyticsJsBridge.EventType.Page)
+            case "s" => Some(AnalyticsJsBridge.EventType.Screen)
+            case "g" => Some(AnalyticsJsBridge.EventType.Group)
+            case "a" => Some(AnalyticsJsBridge.EventType.Alias)
+            case _   => None
           }
+          if (eventType.isDefined)
+            post {
+              extractContentType { ct =>
+                // analytics.js is sending "text/plain" content type which is not supported by the snowplow schema
+                val normalizedContentType =
+                  ContentType.parse(ct.value.toLowerCase.replace("text/plain", "application/json")).toOption
+
+                entity(as[String]) { body =>
+                  val r = collectorService.cookie(
+                    queryString = queryString,
+                    body = Some(body),
+                    path = path,
+                    cookie = cookie,
+                    userAgent = userAgent,
+                    refererUri = refererUri,
+                    hostname = hostname,
+                    ip = ip,
+                    request = request,
+                    pixelExpected = false,
+                    doNotTrack = doNotTrack,
+                    contentType = normalizedContentType,
+                    spAnonymous = spAnonymous,
+                    analyticsJsEvent = eventType.map(t => Event(t, anonymousUserId = anonymousUserId, userId = userId))
+                  )
+                  complete(r)
+                }
+              }
+            }
+          else complete(HttpResponse(StatusCodes.BadRequest))
         }
-      else complete(HttpResponse(StatusCodes.BadRequest))
+      }
+
     }
 
-  def createSnowplowPayload(body: Json, eventType: EventType): Json = {
+  def createSnowplowPayload(body: Json, event: Event, networkUserId: String): Json = {
     import io.circe._
 
     import java.nio.charset.StandardCharsets
@@ -93,7 +103,7 @@ object AnalyticsJsBridge {
 
     val appId = "ajs_bridge"
 
-    val eventSchema = eventType match {
+    val eventSchema = event.eventType match {
       case EventType.Page     => "iglu:com.segment/page/jsonschema/2-0-0"
       case EventType.Identify => "iglu:com.segment/identify/jsonschema/1-0-0"
       case EventType.Track    => "iglu:com.segment/track/jsonschema/1-0-0"
@@ -118,11 +128,16 @@ object AnalyticsJsBridge {
     val properties = body.hcursor.downField("properties")
     val context    = body.hcursor.downField("context")
 
-    val url      = "url"  -> properties.get[String]("url")
-    val page     = "page" -> properties.get[String]("page")
-    val locale   = "lang" -> context.get[String]("locale")
-    val timezone = "tz"   -> context.get[String]("timezone")
-    val userId   = "uid"  -> body.hcursor.get[String]("userId")
+    val url      = "url"  -> properties.get[String]("url").toOption
+    val page     = "page" -> properties.get[String]("page").toOption
+    val locale   = "lang" -> context.get[String]("locale").toOption
+    val timezone = "tz"   -> context.get[String]("timezone").toOption
+    // user_id
+    val userId = "uid" -> event.userId.orElse {
+      body.hcursor.get[String]("userId").toOption
+    }
+    // domain_userid
+    val domainUserId = "duid" -> event.anonymousUserId
 
     val trackerVersion = context
       .downField("library")
@@ -141,11 +156,14 @@ object AnalyticsJsBridge {
       // base64-encoded event
       "ue_px" -> Json.fromString(
         Base64.getEncoder.encodeToString(eventPayload.noSpaces.getBytes(StandardCharsets.UTF_8))
-      )
+      ),
+      // network_userid
+      "tnuid" -> Json.fromString(networkUserId)
     )
 
     // merge optional arguments
-    val data = List(url, page, locale, timezone, userId).map(x => x._1 -> x._2.toOption).foldLeft(initialData) {
+    val optionalEntries = List(url, page, locale, timezone, userId, domainUserId)
+    val data = optionalEntries.foldLeft(initialData) {
       case (acc, (key, Some(value))) => acc.add(key, Json.fromString(value))
       case (acc, _)                  => acc
     }

@@ -55,7 +55,7 @@ trait Service {
     doNotTrack: Boolean,
     contentType: Option[ContentType] = None,
     spAnonymous: Option[String] = None,
-    analyticsJsEvent: Option[AnalyticsJsBridge.EventType] = None
+    analyticsJsEvent: Option[AnalyticsJsBridge.Event] = None
   ): HttpResponse
   def cookieName: Option[String]
   def doNotTrackCookie: Option[DntCookieMatcher]
@@ -113,7 +113,7 @@ class CollectorService(
     doNotTrack: Boolean,
     contentType: Option[ContentType] = None,
     spAnonymous: Option[String],
-    analyticsJsEvent: Option[AnalyticsJsBridge.EventType] = None
+    analyticsJsEvent: Option[AnalyticsJsBridge.Event] = None
   ): HttpResponse = {
     val (ipAddress, partitionKey) = ipAndPartitionKey(ip, config.streams.useIpAddressAsPartitionKey)
 
@@ -249,7 +249,7 @@ class CollectorService(
     networkUserId: String,
     contentType: Option[String],
     spAnonymous: Option[String],
-    analyticsJsEvent: Option[AnalyticsJsBridge.EventType] = None
+    analyticsJsEvent: Option[AnalyticsJsBridge.Event] = None
   ): CollectorPayload = {
     val customBody = analyticsJsEvent match {
       case Some(eventType) =>
@@ -258,7 +258,7 @@ class CollectorService(
           .parser
           .parse(body.getOrElse("{}"))
           .getOrElse(throw new RuntimeException("The request body must be a JSON-encoded Analytic.js payload"))
-        val payload = AnalyticsJsBridge.createSnowplowPayload(jsonBody, eventType)
+        val payload = AnalyticsJsBridge.createSnowplowPayload(jsonBody, eventType, networkUserId)
         Some(payload.noSpaces)
 
       case None => body
@@ -310,7 +310,7 @@ class CollectorService(
     pixelExpected: Boolean,
     bounce: Boolean,
     redirectMacroConfig: RedirectMacroConfig,
-    analyticsJsEvent: Option[AnalyticsJsBridge.EventType] = None
+    analyticsJsEvent: Option[AnalyticsJsBridge.Event] = None
   ): HttpResponse =
     if (redirect) {
       val r = buildRedirectHttpResponse(event, queryParams, redirectMacroConfig)
@@ -324,7 +324,7 @@ class CollectorService(
   def buildUsualHttpResponse(
     pixelExpected: Boolean,
     bounce: Boolean,
-    analyticsJsEvent: Option[AnalyticsJsBridge.EventType] = None
+    analyticsJsEvent: Option[AnalyticsJsBridge.Event] = None
   ): HttpResponse =
     (pixelExpected, bounce, analyticsJsEvent) match {
       case (true, true, _) => HttpResponse(StatusCodes.Found)
