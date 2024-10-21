@@ -48,6 +48,8 @@ object Dependencies {
     val pureconfig       = "0.17.7"
     val akkaHttpMetrics  = "1.7.1"
     val badRows          = "2.1.2"
+    val circeParser      = "0.14.2"
+
     // Scala (test only)
     val specs2         = "4.20.8"
     val specs2CE       = "0.5.4"
@@ -89,6 +91,7 @@ object Dependencies {
     val akkaSlf4j        = "com.typesafe.akka"     %% "akka-slf4j"                        % V.akka
     val pureconfig       = "com.github.pureconfig" %% "pureconfig"                        % V.pureconfig
     val akkaHttpMetrics  = "fr.davit"              %% "akka-http-metrics-datadog"         % V.akkaHttpMetrics
+    val circeParser      = "io.circe"              %% "circe-parser"                      % V.circeParser
 
     // Scala (test only)
     val specs2            = "org.specs2"        %% "specs2-core"                % V.specs2         % Test
