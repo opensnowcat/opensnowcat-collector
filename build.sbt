@@ -35,6 +35,7 @@ lazy val commonDependencies = Seq(
   Dependencies.Libraries.pureconfig,
   Dependencies.Libraries.trackerCore,
   Dependencies.Libraries.trackerEmitterId,
+  Dependencies.Libraries.circeParser,
   // Unit tests
   Dependencies.Libraries.akkaTestkit,
   Dependencies.Libraries.akkaHttpTestkit,
