@@ -96,7 +96,7 @@ jobs:
 #        id: meta
 #        uses: docker/metadata-action@v3
 #        with:
-#          images: snowplow/scala-stream-collector-${{ matrix.platform }}${{ matrix.suffix }}
+#          images: opensnowcat/opensnowcat-collector-${{ matrix.platform }}${{ matrix.suffix }}
 #          tags: |
 #            type=raw,value=latest,enable=${{ !contains(steps.ver.outputs.project_version, 'rc') }}
 #            type=raw,value=latest-focal,enable=${{ !contains(steps.ver.outputs.project_version, 'rc') }}
@@ -109,7 +109,7 @@ jobs:
 #        id: distroless-meta
 #        uses: docker/metadata-action@v3
 #        with:
-#          images: snowplow/scala-stream-collector-${{ matrix.platform }}${{ matrix.suffix }}
+#          images: opensnowcat/opensnowcat-collector-${{ matrix.platform }}${{ matrix.suffix }}
 #          tags: |
 #            type=raw,value=latest-distroless,enable=${{ !contains(steps.ver.outputs.project_version, 'rc') }}
 #            type=raw,value=${{ steps.ver.outputs.project_version }}-distroless
@@ -154,7 +154,7 @@ jobs:
 #        uses: snyk/actions/docker@master
 #        if: matrix.run_snyk
 #        with:
-#          image: "snowplow/scala-stream-collector-${{ matrix.platform }}:${{ github.ref_name }}-distroless"
+#          image: "opensnowcat/opensnowcat-collector-${{ matrix.platform }}:${{ github.ref_name }}-distroless"
 #          args: "--app-vulns --org=data-processing-new"
 #          command: monitor
 #        env:
