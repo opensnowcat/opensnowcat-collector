@@ -1,0 +1,6 @@
+version: 2
+updates:
+  - package-ecosystem: "sbt"
+    directory: "/" # The root directory or the folder containing your build.sbt file
+    schedule:
+      interval: "daily"  # You can set this to daily, weekly, or monthly
