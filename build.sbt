@@ -179,6 +179,7 @@ lazy val pubsubSettings =
     libraryDependencies ++= Seq(
       Dependencies.Libraries.pubsub,
       Dependencies.Libraries.protobuf,
+      Dependencies.Libraries.protobufUtil,
       // integration tests dependencies
       Dependencies.Libraries.specs2It,
       Dependencies.Libraries.specs2CEIt
