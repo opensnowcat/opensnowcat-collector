@@ -38,6 +38,7 @@ object Dependencies {
     val thrift      = "0.15.0"
     val jnrUnixsock = "0.38.22"
     val protobuf    = "3.25.5"
+    val guava       = "32.1.3-jre"
 
     // Scala
     val collectorPayload = "0.0.0"
@@ -70,16 +71,17 @@ object Dependencies {
     val kafkaClients = "org.apache.kafka" % "kafka-clients"       % V.kafka
     val mskAuth =
       "software.amazon.msk" % "aws-msk-iam-auth" % V.mskAuth % Runtime // Enables AWS MSK IAM authentication https://github.com/snowplow/stream-collector/pull/214
-    val nsqClient      = "com.snowplowanalytics"    % "nsq-java-client"     % V.nsqClient
-    val jodaTime       = "joda-time"                % "joda-time"           % V.jodaTime
-    val slf4j          = "org.slf4j"                % "slf4j-simple"        % V.slf4j
-    val log4jOverSlf4j = "org.slf4j"                % "log4j-over-slf4j"    % V.slf4j
-    val log4j          = "org.apache.logging.log4j" % "log4j-core"          % V.log4j
-    val config         = "com.typesafe"             % "config"              % V.config
-    val jnrUnixsocket  = "com.github.jnr"           % "jnr-unixsocket"      % V.jnrUnixsock
-    val rabbitMQ       = "com.rabbitmq"             % "amqp-client"         % V.rabbitMQ
-    val protobuf       = "com.google.protobuf"      % "protobuf-java"       % V.protobuf
-    val protobufUtil   = "com.google.protobuf"      % "protobuf-java-util"  % V.protobuf
+
+    val nsqClient      = "com.snowplowanalytics"    % "nsq-java-client"  % V.nsqClient
+    val jodaTime       = "joda-time"                % "joda-time"        % V.jodaTime
+    val slf4j          = "org.slf4j"                % "slf4j-simple"     % V.slf4j
+    val log4jOverSlf4j = "org.slf4j"                % "log4j-over-slf4j" % V.slf4j
+    val log4j          = "org.apache.logging.log4j" % "log4j-core"       % V.log4j
+    val config         = "com.typesafe"             % "config"           % V.config
+    val jnrUnixsocket  = "com.github.jnr"           % "jnr-unixsocket"   % V.jnrUnixsock
+    val rabbitMQ       = "com.rabbitmq"             % "amqp-client"      % V.rabbitMQ
+    val protobuf       = "com.google.protobuf"      % "protobuf-java"    % V.protobuf
+    val guava          = "com.google.guava"         % "guava"            % V.guava
 
     // Scala
     val collectorPayload = "com.snowplowanalytics"  % "collector-payload-1"               % V.collectorPayload

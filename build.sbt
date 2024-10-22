@@ -179,7 +179,8 @@ lazy val pubsubSettings =
     libraryDependencies ++= Seq(
       Dependencies.Libraries.pubsub,
       Dependencies.Libraries.protobuf,
-      Dependencies.Libraries.protobufUtil,
+      Dependencies.Libraries.guava,
+      
       // integration tests dependencies
       Dependencies.Libraries.specs2It,
       Dependencies.Libraries.specs2CEIt
@@ -228,7 +229,8 @@ lazy val nsqSettings =
     libraryDependencies ++= Seq(
       Dependencies.Libraries.nsqClient,
       Dependencies.Libraries.jackson,
-      Dependencies.Libraries.log4j
+      Dependencies.Libraries.log4j,
+      Dependencies.Libraries.guava
     )
   )
 
