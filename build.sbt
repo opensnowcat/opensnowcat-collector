@@ -180,6 +180,7 @@ lazy val pubsubSettings =
       Dependencies.Libraries.pubsub,
       Dependencies.Libraries.protobuf,
       Dependencies.Libraries.guava,
+
       // integration tests dependencies
       Dependencies.Libraries.specs2It,
       Dependencies.Libraries.specs2CEIt
