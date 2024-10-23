@@ -43,8 +43,8 @@ object Dependencies {
     // Scala
     val collectorPayload = "0.0.0"
     val tracker          = "1.0.1"
-    val akkaHttp         = "10.2.7"
-    val akka             = "2.6.16"
+    val akkaHttp         = "10.2.10"
+    val akka             = "2.6.21"
     val scopt            = "4.1.0"
     val pureconfig       = "0.17.7"
     val akkaHttpMetrics  = "1.7.1"
