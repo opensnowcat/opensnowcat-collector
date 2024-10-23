@@ -24,8 +24,8 @@ object Dependencies {
 
   object V {
     // Java
-    val awsSdk      = "1.12.767"
-    val pubsub      = "1.132.0"
+    val awsSdk      = "1.12.777"
+    val pubsub      = "1.132.4"
     val kafka       = "3.8.0"
     val mskAuth     = "2.2.0"
     val nsqClient   = "1.3.0"
@@ -35,7 +35,7 @@ object Dependencies {
     val config      = "1.4.3"
     val rabbitMQ    = "5.21.0"
     val jackson     = "2.17.2"
-    val thrift      = "0.15.0"
+    val thrift      = "0.16.0"
     val jnrUnixsock = "0.38.22"
     val protobuf    = "3.25.5"
     val guava       = "32.1.3-jre"
