@@ -29,9 +29,7 @@ jobs:
           sbt 'project rabbitmq' assembly
       - name: Get current version
         id: ver
-        run: |
-          export PROJECT_VERSION=$(sbt "project core" version -Dsbt.log.noformat=true | perl -ne 'print "$1\n" if /info.*(\d+\.\d+\.\d+[^\r\n]*)/' | tail -n 1 | tr -d '\n')
-          echo "project_version=$PROJECT_VERSION" >> $GITHUB_OUTPUT
+        run: echo "project_version=${GITHUB_REF#refs/*/}" >> $GITHUB_OUTPUT
       - name: Create GitHub release and attach artifacts
         uses: softprops/action-gh-release@v1
         with:
