@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: write # to publish artifacts
+  packages: write # to publish ghcr.io images
 
 jobs:
   deploy_to_github:
@@ -29,9 +30,7 @@ jobs:
           sbt 'project rabbitmq' assembly
       - name: Get current version
         id: ver
-        run: |
-          export PROJECT_VERSION=$(sbt "project core" version -Dsbt.log.noformat=true | perl -ne 'print "$1\n" if /info.*(\d+\.\d+\.\d+[^\r\n]*)/' | tail -n 1 | tr -d '\n')
-          echo "project_version=$PROJECT_VERSION" >> $GITHUB_OUTPUT
+        run: echo "project_version=${GITHUB_REF#refs/*/}" >> $GITHUB_OUTPUT
       - name: Create GitHub release and attach artifacts
         uses: softprops/action-gh-release@v1
         with:
@@ -50,112 +49,110 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-# TODO: Enable once we configure a docker account
-#  deploy_to_docker:
-#    runs-on: ubuntu-latest
-#    strategy:
-#      matrix:
-#        platform:
-#          - kinesis
-#          - sqs
-#          - pubsub
-#          - kafka
-#          - nsq
-#          - stdout
-#          - rabbitmq
-#        include:
-#          - suffix: ""
-#          - suffix: -experimental
-#            platform: rabbitmq
-#          - platform: kinesis
-#            run_snyk: ${{ !contains(github.ref, 'rc') }}
-#          - platform: pubsub
-#            run_snyk: ${{ !contains(github.ref, 'rc') }}
-#
-#    steps:
-#      - uses: actions/checkout@v2
-#      - uses: coursier/cache-action@v3
-#      - name: Set up JDK
-#        uses: actions/setup-java@v1
+  deploy_docker:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        platform:
+          - kinesis
+          - sqs
+          - pubsub
+          - kafka
+          - nsq
+          - stdout
+          - rabbitmq
+        include:
+          - suffix: ""
+          - suffix: -experimental
+            platform: rabbitmq
+    steps:
+      - uses: actions/checkout@v4
+      - uses: coursier/cache-action@v6
+
+      - name: Set up JDK
+        uses: actions/setup-java@v3
+        with:
+          java-version: 11
+          distribution: 'corretto'
+
+      - name: Get current version
+        id: ver
+        run: echo "project_version=${GITHUB_REF#refs/*/}" >> $GITHUB_OUTPUT
+
+      - name: Stage the Docker build
+        run: sbt "project ${{ matrix.platform }}" docker:stage
+
+      - name: Stage the Docker distroless build
+        run: sbt "project ${{ matrix.platform }}Distroless" docker:stage
+
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: opensnowcat/opensnowcat-collector-${{ matrix.platform }}${{ matrix.suffix }}
+          tags: |
+            type=raw,value=latest,enable=${{ !contains(steps.ver.outputs.project_version, 'rc') }}
+            type=raw,value=latest-focal,enable=${{ !contains(steps.ver.outputs.project_version, 'rc') }}
+            type=raw,value=${{ steps.ver.outputs.project_version }}
+            type=raw,value=${{ steps.ver.outputs.project_version }}-focal
+          flavor: |
+            latest=false
+
+      - name: Docker metadata distroless
+        id: distroless-meta
+        uses: docker/metadata-action@v5
+        with:
+          images: opensnowcat/opensnowcat-collector-${{ matrix.platform }}${{ matrix.suffix }}
+          tags: |
+            type=raw,value=latest-distroless,enable=${{ !contains(steps.ver.outputs.project_version, 'rc') }}
+            type=raw,value=${{ steps.ver.outputs.project_version }}-distroless
+          flavor: |
+            latest=false
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+# TODO: login to push images to GitHub Container Registry
+#      - name: Login to GitHub Container Registry
+#        uses: docker/login-action@v3
 #        with:
-#          java-version: 11
-#
-#      - name: Get current version
-#        id: ver
-#        run: |
-#          export PROJECT_VERSION=$(sbt "project core" version -Dsbt.log.noformat=true | perl -ne 'print "$1\n" if /info.*(\d+\.\d+\.\d+[^\r\n]*)/' | tail -n 1 | tr -d '\n')
-#          echo "project_version=$PROJECT_VERSION" >> $GITHUB_OUTPUT
-#
-#      - name: Stage the Docker build
-#        run: sbt "project ${{ matrix.platform }}" docker:stage
-#
-#      - name: Stage the Docker distroless build
-#        run: sbt "project ${{ matrix.platform }}Distroless" docker:stage
-#
-#      - name: Docker metadata
-#        id: meta
-#        uses: docker/metadata-action@v3
-#        with:
-#          images: opensnowcat/opensnowcat-collector-${{ matrix.platform }}${{ matrix.suffix }}
+#          registry: ghcr.io
+#          username: ${{ github.actor }}
+#          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push image
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.platform }}/target/docker/stage
+          file: ${{ matrix.platform }}/target/docker/stage/Dockerfile
+          platforms: linux/amd64,linux/arm64/v8
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+# TODO: tags to push images to GitHub Container Registry
 #          tags: |
-#            type=raw,value=latest,enable=${{ !contains(steps.ver.outputs.project_version, 'rc') }}
-#            type=raw,value=latest-focal,enable=${{ !contains(steps.ver.outputs.project_version, 'rc') }}
-#            type=raw,value=${{ steps.ver.outputs.project_version }}
-#            type=raw,value=${{ steps.ver.outputs.project_version }}-focal
-#          flavor: |
-#            latest=false
-#
-#      - name: Docker metadata distroless
-#        id: distroless-meta
-#        uses: docker/metadata-action@v3
-#        with:
-#          images: opensnowcat/opensnowcat-collector-${{ matrix.platform }}${{ matrix.suffix }}
+#            ghcr.io/${{ github.repository }}/opensnowcat-collector-${{ matrix.platform }}${{ matrix.suffix }}:latest
+#            ghcr.io/${{ github.repository }}/opensnowcat-collector-${{ matrix.platform }}${{ matrix.suffix }}:latest-focal
+#            ghcr.io/${{ github.repository }}/opensnowcat-collector-${{ matrix.platform }}${{ matrix.suffix }}:${{ steps.ver.outputs.project_version }}
+#            ghcr.io/${{ github.repository }}/opensnowcat-collector-${{ matrix.platform }}${{ matrix.suffix }}:${{ steps.ver.outputs.project_version }}-focal
+
+      - name: Push distroless image
+        uses: docker/build-push-action@v6
+        with:
+          context: distroless/${{ matrix.platform }}/target/docker/stage
+          file: distroless/${{ matrix.platform }}/target/docker/stage/Dockerfile
+          platforms: linux/amd64,linux/arm64/v8
+          push: true
+          tags: ${{ steps.distroless-meta.outputs.tags }}
+# TODO: tags to push images to GitHub Container Registry
 #          tags: |
-#            type=raw,value=latest-distroless,enable=${{ !contains(steps.ver.outputs.project_version, 'rc') }}
-#            type=raw,value=${{ steps.ver.outputs.project_version }}-distroless
-#          flavor: |
-#            latest=false
-#
-#      - name: Set up QEMU
-#        uses: docker/setup-qemu-action@v1
-#
-#      - name: Set up Docker Buildx
-#        uses: docker/setup-buildx-action@v1
-#
-#      - name: Login to DockerHub
-#        uses: docker/login-action@v1
-#        with:
-#          username: ${{ secrets.DOCKER_USERNAME }}
-#          password: ${{ secrets.DOCKER_PASSWORD }}
-#
-#      - name: Push image
-#        uses: docker/build-push-action@v2
-#        with:
-#          context: ${{ matrix.platform }}/target/docker/stage
-#          file: ${{ matrix.platform }}/target/docker/stage/Dockerfile
-#          platforms: linux/amd64,linux/arm64/v8
-#          tags: ${{ steps.meta.outputs.tags }}
-#          push: true
-#      - name: Push distroless image
-#        uses: docker/build-push-action@v2
-#        with:
-#          context: distroless/${{ matrix.platform }}/target/docker/stage
-#          file: distroless/${{ matrix.platform }}/target/docker/stage/Dockerfile
-#          platforms: linux/amd64,linux/arm64/v8
-#          tags: ${{ steps.distroless-meta.outputs.tags }}
-#          push: true
-#
-#      - name: Build local distroless image, which is needed to run Snyk
-#        if: matrix.run_snyk
-#        run: sbt "project ${{ matrix.platform }}Distroless" docker:publishLocal
-#      - name: Show local docker images
-#        run: docker images
-#      - name: Run Snyk to check for vulnerabilities
-#        uses: snyk/actions/docker@master
-#        if: matrix.run_snyk
-#        with:
-#          image: "opensnowcat/opensnowcat-collector-${{ matrix.platform }}:${{ github.ref_name }}-distroless"
-#          args: "--app-vulns --org=data-processing-new"
-#          command: monitor
-#        env:
-#          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+#            ghcr.io/${{ github.repository }}/opensnowcat-collector-${{ matrix.platform }}${{ matrix.suffix }}:latest-distroless
+#            ghcr.io/${{ github.repository }}/opensnowcat-collector-${{ matrix.platform }}${{ matrix.suffix }}:${{ steps.ver.outputs.project_version }}-distroless
