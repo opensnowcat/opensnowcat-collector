@@ -207,7 +207,11 @@ lazy val kafkaSettings =
   allSettings ++ buildInfoSettings ++ Seq(
     moduleName := "opensnowcat-collector-kafka",
     Docker / packageName := "scala-stream-collector-kafka",
-    libraryDependencies ++= Seq(Dependencies.Libraries.kafkaClients, Dependencies.Libraries.mskAuth)
+    libraryDependencies ++= Seq(
+      Dependencies.Libraries.kafkaClients,
+      Dependencies.Libraries.mskAuth,
+      Dependencies.Libraries.nettyAll
+    )
   )
 
 lazy val kafka = project
@@ -230,7 +234,8 @@ lazy val nsqSettings =
       Dependencies.Libraries.nsqClient,
       Dependencies.Libraries.jackson,
       Dependencies.Libraries.log4j,
-      Dependencies.Libraries.guava
+      Dependencies.Libraries.guava,
+      Dependencies.Libraries.nettyAll
     )
   )
 
