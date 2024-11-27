@@ -39,6 +39,7 @@ object Dependencies {
     val jnrUnixsock = "0.38.22"
     val protobuf    = "3.25.5"
     val guava       = "32.1.3-jre"
+    val nettyAll    = "4.1.115.Final"
 
     // Scala
     val collectorPayload = "0.0.0"
@@ -82,6 +83,7 @@ object Dependencies {
     val rabbitMQ       = "com.rabbitmq"             % "amqp-client"      % V.rabbitMQ
     val protobuf       = "com.google.protobuf"      % "protobuf-java"    % V.protobuf
     val guava          = "com.google.guava"         % "guava"            % V.guava
+    val nettyAll       = "io.netty"                 % "netty-all"        % V.nettyAll
 
     // Scala
     val collectorPayload = "com.snowplowanalytics"  % "collector-payload-1"               % V.collectorPayload
