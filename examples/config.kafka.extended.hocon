@@ -183,6 +183,16 @@ collector {
       # "enabled" which should be set to "stdout".
       enabled = kafka
 
+      # The following are used to authenticate for the Amazon Fargate
+      # If both are set to 'default', the default provider chain is used
+      # (see http://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/auth/DefaultAWSCredentialsProviderChain.html)
+      # If both are set to 'iam', use AWS IAM Roles to provision credentials.
+      # If both are set to 'env', use environment variables AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY
+      aws {
+        accessKey = iam
+        secretKey = iam
+      }
+
       # Or Kafka
       brokers = "localhost:9092,another.host:9092"
       ## Number of retries to perform before giving up on sending a record
