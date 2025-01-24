@@ -42,8 +42,8 @@ object AnalyticsJsBridge {
     path(Vendor / Version / Segment) { segment =>
       optionalCookie("ajs_anonymous_id") { ajsAnonymousUserIdCookie =>
         optionalCookie("ajs_user_id") { ajsUserIdCookie =>
-          val anonymousUserId = ajsAnonymousUserIdCookie.map(_.toCookie().value())
-          val userId          = ajsUserIdCookie.map(_.toCookie().value())
+          val anonymousUserId = ajsAnonymousUserIdCookie.map(_.toCookie().value)
+          val userId          = ajsUserIdCookie.map(_.toCookie().value)
 
           // ideally, we should use /com.segment/v1 as the path but this requires a remote adapter on the enrich side
           // instead, we are reusing the snowplow event type while attaching the segment payload
