@@ -58,7 +58,7 @@ lazy val commonExclusions = Seq(
   // Avoid duplicate .proto files brought in by akka/pekko and google-cloud-pubsub.
   // We don't need any akka serializers because collector runs in a single JVM.
   "com.typesafe.akka" % "akka-protobuf-v3_2.12",
-  "org.apache.pekko" %% "pekko-protobuf"
+  "org.apache.pekko" %% "pekko-protobuf-v3"
 )
 
 lazy val buildInfoSettings = Seq(
