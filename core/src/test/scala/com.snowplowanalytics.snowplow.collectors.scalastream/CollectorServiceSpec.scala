@@ -22,9 +22,9 @@ import org.apache.thrift.{TDeserializer, TSerializer}
 import scala.collection.immutable.Seq
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
-import akka.http.scaladsl.model._
-import akka.http.scaladsl.model.headers._
-import akka.http.scaladsl.model.headers.CacheDirectives._
+import org.apache.pekko.http.scaladsl.model._
+import org.apache.pekko.http.scaladsl.model.headers._
+import org.apache.pekko.http.scaladsl.model.headers.CacheDirectives._
 import cats.data.NonEmptyList
 import io.circe._
 import io.circe.parser._

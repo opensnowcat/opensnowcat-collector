@@ -18,16 +18,16 @@ import java.io.File
 import javax.net.ssl.SSLContext
 import org.slf4j.LoggerFactory
 import org.apache.pekko.actor.ActorSystem
-import akka.http.scaladsl.{ConnectionContext, Http}
-import akka.http.scaladsl.model.StatusCodes
-import akka.http.scaladsl.server.Route
-import akka.http.scaladsl.server.Directives._
+import org.apache.pekko.http.scaladsl.{ConnectionContext, Http}
+import org.apache.pekko.http.scaladsl.model.StatusCodes
+import org.apache.pekko.http.scaladsl.server.Route
+import org.apache.pekko.http.scaladsl.server.Directives._
 import com.typesafe.config.{Config, ConfigFactory}
 import pureconfig.ConfigSource
 import com.timgroup.statsd.NonBlockingStatsDClientBuilder
-import fr.davit.akka.http.metrics.core.HttpMetricsRegistry
-import fr.davit.akka.http.metrics.core.HttpMetrics._
-import fr.davit.akka.http.metrics.datadog.{DatadogRegistry, DatadogSettings}
+import fr.davit.pekko.http.metrics.core.HttpMetricsRegistry
+import fr.davit.pekko.http.metrics.core.HttpMetrics._
+import fr.davit.pekko.http.metrics.datadog.{DatadogRegistry, DatadogSettings}
 import com.snowplowanalytics.snowplow.collectors.scalastream.sinks.Sink
 import com.snowplowanalytics.snowplow.collectors.scalastream.model._
 import com.snowplowanalytics.snowplow.collectors.scalastream.telemetry.TelemetryPekkoService

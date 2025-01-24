@@ -14,10 +14,10 @@
  */
 package com.snowplowanalytics.snowplow.collectors.scalastream
 
-import akka.http.scaladsl.model._
-import akka.http.scaladsl.model.headers.HttpCookiePair
-import akka.http.scaladsl.server.{Directive1, Route}
-import akka.http.scaladsl.server.Directives._
+import org.apache.pekko.http.scaladsl.model._
+import org.apache.pekko.http.scaladsl.model.headers.HttpCookiePair
+import org.apache.pekko.http.scaladsl.server.{Directive1, Route}
+import org.apache.pekko.http.scaladsl.server.Directives._
 
 import com.snowplowanalytics.snowplow.collectors.scalastream.model.DntCookieMatcher
 

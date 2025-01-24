@@ -16,11 +16,11 @@ package com.snowplowanalytics.snowplow.collectors.scalastream
 
 import java.net.InetAddress
 
-import akka.http.scaladsl.model._
-import akka.http.scaladsl.model.headers._
+import org.apache.pekko.http.scaladsl.model._
+import org.apache.pekko.http.scaladsl.model.headers._
 import com.snowplowanalytics.snowplow.collectors.scalastream.fixtures.AnalyticsJsFixture
-import akka.http.scaladsl.server.Directives._
-import akka.http.scaladsl.testkit.Specs2RouteTest
+import org.apache.pekko.http.scaladsl.server.Directives._
+import org.apache.pekko.http.scaladsl.testkit.Specs2RouteTest
 
 import com.snowplowanalytics.snowplow.collectors.scalastream.model.DntCookieMatcher
 

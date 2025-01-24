@@ -14,9 +14,9 @@
  */
 package com.snowplowanalytics.snowplow.collectors.scalastream
 
-import akka.http.scaladsl.Http
-import akka.http.scaladsl.model.HttpRequest
-import akka.http.scaladsl.settings.ConnectionPoolSettings
+import org.apache.pekko.http.scaladsl.Http
+import org.apache.pekko.http.scaladsl.model.HttpRequest
+import org.apache.pekko.http.scaladsl.settings.ConnectionPoolSettings
 import akka.stream.scaladsl.{Sink, Source}
 import org.apache.pekko.actor.ActorSystem
 

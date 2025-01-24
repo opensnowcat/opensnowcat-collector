@@ -1,9 +1,9 @@
 package com.snowplowanalytics.snowplow.collectors.scalastream
 
-import akka.http.scaladsl.model._
-import akka.http.scaladsl.model.headers.HttpCookie
-import akka.http.scaladsl.server.Directives._
-import akka.http.scaladsl.server._
+import org.apache.pekko.http.scaladsl.model._
+import org.apache.pekko.http.scaladsl.model.headers.HttpCookie
+import org.apache.pekko.http.scaladsl.server.Directives._
+import org.apache.pekko.http.scaladsl.server._
 
 object AnalyticsJsBridge {
 
