@@ -18,7 +18,7 @@ import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.HttpRequest
 import akka.http.scaladsl.settings.ConnectionPoolSettings
 import akka.stream.scaladsl.{Sink, Source}
-import akka.actor.ActorSystem
+import org.apache.pekko.actor.ActorSystem
 
 import org.slf4j.{Logger, LoggerFactory}
 

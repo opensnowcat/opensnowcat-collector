@@ -22,7 +22,7 @@ import java.util.concurrent.Executors
 
 import com.rabbitmq.client.{Channel, Connection, ConnectionFactory}
 
-import com.snowplowanalytics.snowplow.collectors.scalastream.telemetry.TelemetryAkkaService
+import com.snowplowanalytics.snowplow.collectors.scalastream.telemetry.TelemetryPekkoService
 import com.snowplowanalytics.snowplow.collectors.scalastream.generated.BuildInfo
 import com.snowplowanalytics.snowplow.collectors.scalastream.model._
 import com.snowplowanalytics.snowplow.collectors.scalastream.sinks.RabbitMQSink
@@ -34,7 +34,7 @@ object RabbitMQCollector extends Collector {
 
   def main(args: Array[String]): Unit = {
     val (collectorConf, akkaConf) = parseConfig(args)
-    val telemetry                 = TelemetryAkkaService.initWithCollector(collectorConf, BuildInfo.moduleName, appVersion)
+    val telemetry                 = TelemetryPekkoService.initWithCollector(collectorConf, BuildInfo.moduleName, appVersion)
     val sinks: Either[Throwable, CollectorSinks] =
       for {
         config <- collectorConf.streams.sink match {

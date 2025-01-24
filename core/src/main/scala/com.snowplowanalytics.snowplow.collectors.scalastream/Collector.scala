@@ -17,7 +17,7 @@ package com.snowplowanalytics.snowplow.collectors.scalastream
 import java.io.File
 import javax.net.ssl.SSLContext
 import org.slf4j.LoggerFactory
-import akka.actor.ActorSystem
+import org.apache.pekko.actor.ActorSystem
 import akka.http.scaladsl.{ConnectionContext, Http}
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Route
@@ -30,7 +30,7 @@ import fr.davit.akka.http.metrics.core.HttpMetrics._
 import fr.davit.akka.http.metrics.datadog.{DatadogRegistry, DatadogSettings}
 import com.snowplowanalytics.snowplow.collectors.scalastream.sinks.Sink
 import com.snowplowanalytics.snowplow.collectors.scalastream.model._
-import com.snowplowanalytics.snowplow.collectors.scalastream.telemetry.TelemetryAkkaService
+import com.snowplowanalytics.snowplow.collectors.scalastream.telemetry.TelemetryPekkoService
 
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.concurrent.duration.Duration
@@ -88,7 +88,7 @@ trait Collector {
     collectorConf: CollectorConfig,
     akkaConf: Config,
     sinks: CollectorSinks,
-    telemetry: TelemetryAkkaService
+    telemetry: TelemetryPekkoService
   ): Unit = {
 
     implicit val system           = ActorSystem.create("scala-stream-collector", akkaConf)

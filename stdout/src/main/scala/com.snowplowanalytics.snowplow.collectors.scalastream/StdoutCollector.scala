@@ -17,7 +17,7 @@ package com.snowplowanalytics.snowplow.collectors.scalastream
 import com.snowplowanalytics.snowplow.collectors.scalastream.generated.BuildInfo
 import com.snowplowanalytics.snowplow.collectors.scalastream.model._
 import com.snowplowanalytics.snowplow.collectors.scalastream.sinks.StdoutSink
-import com.snowplowanalytics.snowplow.collectors.scalastream.telemetry.TelemetryAkkaService
+import com.snowplowanalytics.snowplow.collectors.scalastream.telemetry.TelemetryPekkoService
 
 object StdoutCollector extends Collector {
 
@@ -27,7 +27,7 @@ object StdoutCollector extends Collector {
 
   def main(args: Array[String]): Unit = {
     val (collectorConf, akkaConf) = parseConfig(args)
-    val telemetry                 = TelemetryAkkaService.initWithCollector(collectorConf, BuildInfo.moduleName, appVersion)
+    val telemetry                 = TelemetryPekkoService.initWithCollector(collectorConf, BuildInfo.moduleName, appVersion)
     val sinks = {
       val (good, bad) = collectorConf.streams.sink match {
         case s: Stdout => (new StdoutSink(s.maxBytes, "out"), new StdoutSink(s.maxBytes, "err"))

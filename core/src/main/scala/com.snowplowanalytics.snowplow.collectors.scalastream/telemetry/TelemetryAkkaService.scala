@@ -16,7 +16,7 @@ package com.snowplowanalytics.snowplow.collectors.scalastream.telemetry
 
 import cats.data.NonEmptyList
 
-import akka.actor.ActorSystem
+import org.apache.pekko.actor.ActorSystem
 
 import io.circe.Json
 
@@ -41,7 +41,7 @@ import com.snowplowanalytics.snowplow.collectors.scalastream.model.{
   TelemetryConfig
 }
 
-/** Akka implementation of telemetry service.
+/** Pekko implementation of telemetry service.
   *
   * @param teleCfg - telemetry configuration
   * @param cloud - cloud vendor
@@ -49,7 +49,7 @@ import com.snowplowanalytics.snowplow.collectors.scalastream.model.{
   * @param appName - application name as defined during build (take it from BuildInfo)
   * @param appVersion - application name as defined during build (take it from BuildInfo)
   */
-case class TelemetryAkkaService(
+case class TelemetryPekkoService(
   teleCfg: TelemetryConfig,
   cloud: Option[CloudVendor],
   region: Option[String],
@@ -101,9 +101,9 @@ case class TelemetryAkkaService(
     }
 }
 
-object TelemetryAkkaService {
+object TelemetryPekkoService {
 
-  /** Specialized version of [[TelemetryAkkaService]] for collector. That takes CollectorConfig as an input.
+  /** Specialized version of [[TelemetryPekkoService]] for collector. That takes CollectorConfig as an input.
     *
     * @param collectorConfig - Top level collector configuration
     * @param appName - application name as defined during build (take it from BuildInfo)
@@ -114,7 +114,7 @@ object TelemetryAkkaService {
     collectorConfig: CollectorConfig,
     appName: String,
     appVersion: String
-  ): TelemetryAkkaService = {
+  ): TelemetryPekkoService = {
 
     val (cloud, region) = collectorConfig.streams.sink match {
       case k: Kinesis      => (Some(CloudVendor.Aws), Some(k.region))
@@ -123,7 +123,7 @@ object TelemetryAkkaService {
       case _               => (None, None)
     }
 
-    TelemetryAkkaService(
+    TelemetryPekkoService(
       collectorConfig.telemetry.getOrElse(TelemetryConfig()),
       cloud,
       region,
