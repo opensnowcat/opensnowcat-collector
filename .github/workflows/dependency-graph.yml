@@ -12,6 +12,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: 11
+          distribution: 'corretto'
+          cache: sbt
+      - uses: sbt/setup-sbt@v1
+        with:
+          sbt-runner-version: 1.9.9
       - uses: scalacenter/sbt-dependency-submission@v2
         with:
           ## Optional: Define the working directory of your build.
