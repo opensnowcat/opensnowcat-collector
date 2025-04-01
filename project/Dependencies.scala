@@ -39,7 +39,7 @@ object Dependencies {
     val jnrUnixsock = "0.38.22"
     val protobuf    = "3.25.5"
     val guava       = "32.1.3-jre"
-    val nettyAll    = "4.1.115.Final"
+    val nettyAll    = "4.1.119.Final"
 
     // Scala
     val collectorPayload = "0.0.0"
