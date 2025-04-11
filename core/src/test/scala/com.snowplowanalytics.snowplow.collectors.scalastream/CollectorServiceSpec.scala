@@ -262,7 +262,7 @@ class CollectorServiceSpec extends Specification {
         val payload = brJson.hcursor.downField("data").downField("payload").as[String]
 
         failure must beRight(
-          "Illegal query: Invalid input ' ', expected '+', '=', query-char, 'EOI', '&' or pct-encoded (line 1, column 2): a b\n ^"
+          "Illegal query: Invalid input ' ', expected '+', query-char, pct-encoded, '=', '&' or 'EOI' (line 1, column 2): a b\n ^"
         )
         payload must beRight("a b")
       }
