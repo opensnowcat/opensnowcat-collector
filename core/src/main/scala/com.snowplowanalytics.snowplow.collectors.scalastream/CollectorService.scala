@@ -23,9 +23,9 @@ import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConverters._
 
-import akka.http.scaladsl.model._
-import akka.http.scaladsl.model.headers._
-import akka.http.scaladsl.model.headers.CacheDirectives._
+import org.apache.pekko.http.scaladsl.model._
+import org.apache.pekko.http.scaladsl.model.headers._
+import org.apache.pekko.http.scaladsl.model.headers.CacheDirectives._
 import cats.data.NonEmptyList
 import cats.implicits._
 

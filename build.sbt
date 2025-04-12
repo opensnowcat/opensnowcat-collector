@@ -24,11 +24,14 @@ lazy val commonDependencies = Seq(
   Dependencies.Libraries.config,
   // Scala
   Dependencies.Libraries.scopt,
-  Dependencies.Libraries.akkaStream,
-  Dependencies.Libraries.akkaHttp,
-  Dependencies.Libraries.akkaStream,
-  Dependencies.Libraries.akkaSlf4j,
-  Dependencies.Libraries.akkaHttpMetrics,
+//  Dependencies.Libraries.akkaStream,
+//  Dependencies.Libraries.akkaHttp,
+//  Dependencies.Libraries.akkaSlf4j,
+//  Dependencies.Libraries.akkaHttpMetrics,
+  Dependencies.Libraries.pekkoStream,
+  Dependencies.Libraries.pekkoHttp,
+  Dependencies.Libraries.pekkoSlf4j,
+  Dependencies.Libraries.pekkoHttpMetrics,
   Dependencies.Libraries.jnrUnixsocket,
   Dependencies.Libraries.badRows,
   Dependencies.Libraries.collectorPayload,
@@ -37,9 +40,12 @@ lazy val commonDependencies = Seq(
   Dependencies.Libraries.trackerEmitterId,
   Dependencies.Libraries.circeParser,
   // Unit tests
-  Dependencies.Libraries.akkaTestkit,
-  Dependencies.Libraries.akkaHttpTestkit,
-  Dependencies.Libraries.akkaStreamTestkit,
+//  Dependencies.Libraries.akkaTestkit,
+//  Dependencies.Libraries.akkaHttpTestkit,
+//  Dependencies.Libraries.akkaStreamTestkit,
+  Dependencies.Libraries.pekkoTestkit,
+  Dependencies.Libraries.pekkoHttpTestkit,
+  Dependencies.Libraries.pekkoStreamTestkit,
   Dependencies.Libraries.specs2,
   // Integration tests
   Dependencies.Libraries.testcontainersIt,
@@ -49,9 +55,10 @@ lazy val commonDependencies = Seq(
 
 lazy val commonExclusions = Seq(
   "org.apache.tomcat.embed" % "tomcat-embed-core", // exclude for security vulnerabilities introduced by libthrift
-  // Avoid duplicate .proto files brought in by akka and google-cloud-pubsub.
+  // Avoid duplicate .proto files brought in by akka/pekko and google-cloud-pubsub.
   // We don't need any akka serializers because collector runs in a single JVM.
-  "com.typesafe.akka" % "akka-protobuf-v3_2.12"
+  "com.typesafe.akka" % "akka-protobuf-v3_2.12",
+  "org.apache.pekko" %% "pekko-protobuf-v3"
 )
 
 lazy val buildInfoSettings = Seq(

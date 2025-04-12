@@ -22,9 +22,9 @@ import org.apache.thrift.{TDeserializer, TSerializer}
 import scala.collection.immutable.Seq
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
-import akka.http.scaladsl.model._
-import akka.http.scaladsl.model.headers._
-import akka.http.scaladsl.model.headers.CacheDirectives._
+import org.apache.pekko.http.scaladsl.model._
+import org.apache.pekko.http.scaladsl.model.headers._
+import org.apache.pekko.http.scaladsl.model.headers.CacheDirectives._
 import cats.data.NonEmptyList
 import io.circe._
 import io.circe.parser._
@@ -262,7 +262,7 @@ class CollectorServiceSpec extends Specification {
         val payload = brJson.hcursor.downField("data").downField("payload").as[String]
 
         failure must beRight(
-          "Illegal query: Invalid input ' ', expected '+', '=', query-char, 'EOI', '&' or pct-encoded (line 1, column 2): a b\n ^"
+          "Illegal query: Invalid input ' ', expected '+', query-char, pct-encoded, '=', '&' or 'EOI' (line 1, column 2): a b\n ^"
         )
         payload must beRight("a b")
       }

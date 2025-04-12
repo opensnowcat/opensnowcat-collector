@@ -17,7 +17,7 @@ package com.snowplowanalytics.snowplow.collectors.scalastream
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.duration.DurationInt
 
-import akka.http.scaladsl.model.headers.HttpCookiePair
+import org.apache.pekko.http.scaladsl.model.headers.HttpCookiePair
 
 import com.snowplowanalytics.snowplow.collectors.scalastream.sinks.Sink
 
