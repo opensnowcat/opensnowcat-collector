@@ -190,14 +190,12 @@ collector {
    }
 }
 
-# Akka has a variety of possible configuration options defined at
-# http://doc.akka.io/docs/akka/current/scala/general/configuration.html
-akka {
+# https://pekko.apache.org/docs/pekko/current/general/configuration.html
+pekko {
   loglevel = DEBUG # 'OFF' for no logging, 'DEBUG' for all logging.
-  loggers = ["akka.event.slf4j.Slf4jLogger"]
+  loggers = ["org.apache.pekko.event.slf4j.Slf4jLogger"]
 
-  # akka-http is the server the Stream collector uses and has configurable options defined at
-  # http://doc.akka.io/docs/akka-http/current/scala/http/configuration.html
+  # https://pekko.apache.org/docs/pekko-http/current/configuration.html
   http.server {
     # To obtain the hostname in the collector, the 'remote-address' header
     # should be set. By default, this is disabled, and enabling it

@@ -44,11 +44,8 @@ object Dependencies {
     // Scala
     val collectorPayload = "0.0.0"
     val tracker          = "1.0.1"
-//    val akkaHttp         = "10.2.10"
-//    val akka             = "2.6.21"
     val scopt            = "4.1.0"
     val pureconfig       = "0.17.7"
-//    val akkaHttpMetrics  = "1.7.1"
     val badRows          = "2.1.2"
     val circeParser      = "0.14.2"
     val pekko            = "1.0.3"
@@ -95,11 +92,7 @@ object Dependencies {
     val trackerCore      = "com.snowplowanalytics" %% "snowplow-scala-tracker-core"       % V.tracker
     val trackerEmitterId = "com.snowplowanalytics" %% "snowplow-scala-tracker-emitter-id" % V.tracker
     val scopt            = "com.github.scopt"      %% "scopt"                             % V.scopt
-//    val akkaHttp         = "com.typesafe.akka"     %% "akka-http"                         % V.akkaHttp
-//    val akkaStream       = "com.typesafe.akka"     %% "akka-stream"                       % V.akka
-//    val akkaSlf4j        = "com.typesafe.akka"     %% "akka-slf4j"                        % V.akka
     val pureconfig       = "com.github.pureconfig" %% "pureconfig"                        % V.pureconfig
-//    val akkaHttpMetrics  = "fr.davit"              %% "akka-http-metrics-datadog"         % V.akkaHttpMetrics
     val circeParser      = "io.circe"              %% "circe-parser"                      % V.circeParser
     val pekkoHttp        = "org.apache.pekko"      %% "pekko-http"                        % V.pekkoHttp
     val pekkoStream      = "org.apache.pekko"      %% "pekko-stream"                      % V.pekko
@@ -114,9 +107,6 @@ object Dependencies {
     val testcontainersIt   = "com.dimafeng"      %% "testcontainers-scala-core"  % V.testcontainers % IntegrationTest
     val catsRetryIt        = "com.github.cb372"  %% "cats-retry"                 % V.catsRetry      % IntegrationTest
     val http4sClientIt     = "org.http4s"        %% "http4s-blaze-client"        % V.http4s         % IntegrationTest
-//    val akkaTestkit        = "com.typesafe.akka" %% "akka-testkit"               % V.akka           % Test
-//    val akkaHttpTestkit    = "com.typesafe.akka" %% "akka-http-testkit"          % V.akkaHttp       % Test
-//    val akkaStreamTestkit  = "com.typesafe.akka" %% "akka-stream-testkit"        % V.akka           % Test
     val pekkoTestkit       = "org.apache.pekko"  %% "pekko-testkit"              % V.pekko          % Test
     val pekkoHttpTestkit   = "org.apache.pekko"  %% "pekko-http-testkit"         % V.pekkoHttp      % Test
     val pekkoStreamTestkit = "org.apache.pekko" %% "pekko-stream-testkit"        % V.pekko          % Test

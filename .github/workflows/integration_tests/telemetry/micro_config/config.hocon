@@ -70,9 +70,9 @@ collector {
   }
 }
 
-akka {
+pekko {
   loglevel = DEBUG
-  loggers = ["akka.event.slf4j.Slf4jLogger"]
+  loggers = ["org.apache.pekko.event.slf4j.Slf4jLogger"]
   http.server {
     remote-address-header = on
     raw-request-uri-header = on

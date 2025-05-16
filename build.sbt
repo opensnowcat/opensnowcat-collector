@@ -24,10 +24,6 @@ lazy val commonDependencies = Seq(
   Dependencies.Libraries.config,
   // Scala
   Dependencies.Libraries.scopt,
-//  Dependencies.Libraries.akkaStream,
-//  Dependencies.Libraries.akkaHttp,
-//  Dependencies.Libraries.akkaSlf4j,
-//  Dependencies.Libraries.akkaHttpMetrics,
   Dependencies.Libraries.pekkoStream,
   Dependencies.Libraries.pekkoHttp,
   Dependencies.Libraries.pekkoSlf4j,
@@ -40,9 +36,6 @@ lazy val commonDependencies = Seq(
   Dependencies.Libraries.trackerEmitterId,
   Dependencies.Libraries.circeParser,
   // Unit tests
-//  Dependencies.Libraries.akkaTestkit,
-//  Dependencies.Libraries.akkaHttpTestkit,
-//  Dependencies.Libraries.akkaStreamTestkit,
   Dependencies.Libraries.pekkoTestkit,
   Dependencies.Libraries.pekkoHttpTestkit,
   Dependencies.Libraries.pekkoStreamTestkit,
