@@ -34,7 +34,7 @@ object Dependencies {
     val log4j       = "2.23.1"
     val config      = "1.4.3"
     val rabbitMQ    = "5.21.0"
-    val jackson     = "2.17.2"
+    val jackson     = "2.19.1"
     val thrift      = "0.16.0"
     val jnrUnixsock = "0.38.22"
     val protobuf    = "3.25.5"
@@ -64,6 +64,7 @@ object Dependencies {
   object Libraries {
     // Java
     val jackson = "com.fasterxml.jackson.core" % "jackson-databind"     % V.jackson // nsq only
+    val jacksonCore = "com.fasterxml.jackson.core" % "jackson-core"       % V.jackson
     val thrift  = "org.apache.thrift"          % "libthrift"            % V.thrift
     val kinesis = "com.amazonaws"              % "aws-java-sdk-kinesis" % V.awsSdk
     val sqs     = "com.amazonaws"              % "aws-java-sdk-sqs"     % V.awsSdk

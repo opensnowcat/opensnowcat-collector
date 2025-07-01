@@ -210,7 +210,8 @@ lazy val kafkaSettings =
     libraryDependencies ++= Seq(
       Dependencies.Libraries.kafkaClients,
       Dependencies.Libraries.mskAuth,
-      Dependencies.Libraries.nettyAll
+      Dependencies.Libraries.nettyAll,
+      Dependencies.Libraries.jacksonCore
     )
   )
 
