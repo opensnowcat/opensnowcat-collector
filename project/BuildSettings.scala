@@ -40,6 +40,7 @@ object BuildSettings {
       case x if x.endsWith("module-info.class")                 => MergeStrategy.first
       case x if x.endsWith("paginators-1.json")                 => MergeStrategy.first
       case x if x.endsWith("service-2.json")                    => MergeStrategy.first
+      case x if x.contains("FastDoubleParser")                  => MergeStrategy.first
       case x =>
         val oldStrategy = (assembly / assemblyMergeStrategy).value
         oldStrategy(x)
