@@ -40,6 +40,7 @@ object Dependencies {
     val protobuf    = "3.25.5"
     val guava       = "32.1.3-jre"
     val nettyAll    = "4.1.119.Final"
+    val commonsLang = "3.18.0"
 
     // Scala
     val collectorPayload = "0.0.0"
@@ -86,6 +87,7 @@ object Dependencies {
     val protobuf       = "com.google.protobuf"      % "protobuf-java"    % V.protobuf
     val guava          = "com.google.guava"         % "guava"            % V.guava
     val nettyAll       = "io.netty"                 % "netty-all"        % V.nettyAll
+    val commonsLang3   = "org.apache.commons"       % "commons-lang3"    % V.commonsLang
 
     // Scala
     val collectorPayload = "com.snowplowanalytics"  % "collector-payload-1"               % V.collectorPayload
