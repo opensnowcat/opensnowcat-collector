@@ -1,0 +1,24 @@
+collector {
+  interface = "0.0.0.0"
+  port = 8080
+
+  streams {
+    good = "good"
+    bad = "bad"
+
+    sink {
+      brokers = "xxxxxxxxxxxxx.warpstream.com:9092"
+      producerConf {
+        enable.idempotence = false
+        max.in.flight.requests.per.connection = 1000
+        linger.ms = 100
+        metadata.max.age.ms = 60000
+        batch.size = 100000
+        buffer.memory = 128000000
+        max.request.size = 64000000
+        compression.type = lz4
+        metadata.recovery.strategy = rebootstrap
+     }
+   }
+  }
+}
