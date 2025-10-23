@@ -101,11 +101,16 @@ lazy val dynVerSettings = Seq(
   ThisBuild / dynverSeparator := "-" // to be compatible with docker
 )
 
+lazy val dockerSettings = Seq(
+  dockerBaseImage := "eclipse-temurin:11-jre-jammy" // Ubuntu 22.04 (Jammy) with Java 11
+)
+
 lazy val allSettings = buildSettings ++
   BuildSettings.sbtAssemblySettings ++
   BuildSettings.formatting ++
   Seq(excludeDependencies ++= commonExclusions) ++
   dynVerSettings ++
+  dockerSettings ++
   BuildSettings.addExampleConfToTestCp
 
 lazy val root = project
