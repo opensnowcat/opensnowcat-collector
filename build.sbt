@@ -105,6 +105,10 @@ lazy val dockerSettings = Seq(
   dockerBaseImage := "eclipse-temurin:11-jre-jammy" // Ubuntu 22.04 (Jammy) with Java 11
 )
 
+lazy val dockerDistrolessSettings = Seq(
+  dockerBaseImage := "gcr.io/distroless/java11-debian12:nonroot" // Debian 12 (Bookworm) - compatible with newer glibc
+)
+
 lazy val allSettings = buildSettings ++
   BuildSettings.sbtAssemblySettings ++
   BuildSettings.formatting ++
@@ -152,6 +156,7 @@ lazy val kinesisDistroless = project
   .in(file("distroless/kinesis"))
   .settings(sourceDirectory := (kinesis / sourceDirectory).value)
   .settings(kinesisSettings)
+  .settings(dockerDistrolessSettings)
   .enablePlugins(JavaAppPackaging, SnowplowDistrolessDockerPlugin, BuildInfoPlugin)
   .dependsOn(core % "test->test;compile->compile;it->it")
   .configs(IntegrationTest)
@@ -175,6 +180,7 @@ lazy val sqsDistroless = project
   .in(file("distroless/sqs"))
   .settings(sourceDirectory := (sqs / sourceDirectory).value)
   .settings(sqsSettings)
+  .settings(dockerDistrolessSettings)
   .enablePlugins(JavaAppPackaging, SnowplowDistrolessDockerPlugin, BuildInfoPlugin)
   .dependsOn(core % "test->test;compile->compile")
 
@@ -205,6 +211,7 @@ lazy val pubsubDistroless = project
   .in(file("distroless/pubsub"))
   .settings(sourceDirectory := (pubsub / sourceDirectory).value)
   .settings(pubsubSettings)
+  .settings(dockerDistrolessSettings)
   .enablePlugins(JavaAppPackaging, SnowplowDistrolessDockerPlugin, BuildInfoPlugin)
   .dependsOn(core % "test->test;compile->compile;it->it")
   .configs(IntegrationTest)
@@ -230,6 +237,7 @@ lazy val kafkaDistroless = project
   .in(file("distroless/kafka"))
   .settings(sourceDirectory := (kafka / sourceDirectory).value)
   .settings(kafkaSettings)
+  .settings(dockerDistrolessSettings)
   .enablePlugins(JavaAppPackaging, SnowplowDistrolessDockerPlugin, BuildInfoPlugin)
   .dependsOn(core % "test->test;compile->compile")
 
@@ -255,6 +263,7 @@ lazy val nsqDistroless = project
   .in(file("distroless/nsq"))
   .settings(sourceDirectory := (nsq / sourceDirectory).value)
   .settings(nsqSettings)
+  .settings(dockerDistrolessSettings)
   .enablePlugins(JavaAppPackaging, SnowplowDistrolessDockerPlugin, BuildInfoPlugin)
   .dependsOn(core % "test->test;compile->compile")
 
@@ -273,6 +282,7 @@ lazy val stdoutDistroless = project
   .in(file("distroless/stdout"))
   .settings(sourceDirectory := (stdout / sourceDirectory).value)
   .settings(stdoutSettings)
+  .settings(dockerDistrolessSettings)
   .enablePlugins(JavaAppPackaging, SnowplowDistrolessDockerPlugin, BuildInfoPlugin)
   .dependsOn(core % "test->test;compile->compile")
 
@@ -292,5 +302,6 @@ lazy val rabbitmqDistroless = project
   .in(file("distroless/rabbitmq"))
   .settings(sourceDirectory := (rabbitmq / sourceDirectory).value)
   .settings(rabbitmqSettings)
+  .settings(dockerDistrolessSettings)
   .enablePlugins(JavaAppPackaging, SnowplowDistrolessDockerPlugin, BuildInfoPlugin)
   .dependsOn(core % "test->test;compile->compile")
