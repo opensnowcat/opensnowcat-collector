@@ -102,11 +102,11 @@ lazy val dynVerSettings = Seq(
 )
 
 lazy val dockerSettings = Seq(
-  dockerBaseImage := "eclipse-temurin:11-jre-jammy" // Ubuntu 22.04 (Jammy) with Java 11
+  dockerBaseImage := "eclipse-temurin:11-jre-jammy"
 )
 
 lazy val dockerDistrolessSettings = Seq(
-  dockerBaseImage := "gcr.io/distroless/java11-debian12:nonroot" // Debian 12 (Bookworm) - compatible with newer glibc
+  dockerBaseImage := "gcr.io/distroless/java11-debian11:nonroot"
 )
 
 lazy val allSettings = buildSettings ++
