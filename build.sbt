@@ -138,8 +138,9 @@ lazy val kinesisSettings =
   )
 
 lazy val kinesis = project
-  .settings(kinesisSettings)
   .enablePlugins(JavaAppPackaging, SnowplowDockerPlugin, BuildInfoPlugin)
+  .settings(dockerBaseImage := "eclipse-temurin:11-jre-noble")
+  .settings(kinesisSettings)
   .dependsOn(core % "test->test;compile->compile;it->it")
   .configs(IntegrationTest)
 
@@ -162,8 +163,9 @@ lazy val sqsSettings =
   )
 
 lazy val sqs = project
-  .settings(sqsSettings)
   .enablePlugins(JavaAppPackaging, SnowplowDockerPlugin, BuildInfoPlugin)
+  .settings(dockerBaseImage := "eclipse-temurin:11-jre-noble")
+  .settings(sqsSettings)
   .dependsOn(core % "test->test;compile->compile")
 
 lazy val sqsDistroless = project
@@ -191,8 +193,9 @@ lazy val pubsubSettings =
   )
 
 lazy val pubsub = project
-  .settings(pubsubSettings)
   .enablePlugins(JavaAppPackaging, SnowplowDockerPlugin, BuildInfoPlugin)
+  .settings(dockerBaseImage := "eclipse-temurin:11-jre-noble")
+  .settings(pubsubSettings)
   .dependsOn(core % "test->test;compile->compile;it->it")
   .configs(IntegrationTest)
 
@@ -217,8 +220,9 @@ lazy val kafkaSettings =
   )
 
 lazy val kafka = project
-  .settings(kafkaSettings)
   .enablePlugins(JavaAppPackaging, SnowplowDockerPlugin, BuildInfoPlugin)
+  .settings(dockerBaseImage := "eclipse-temurin:11-jre-noble")
+  .settings(kafkaSettings)
   .dependsOn(core % "test->test;compile->compile")
 
 lazy val kafkaDistroless = project
@@ -242,8 +246,9 @@ lazy val nsqSettings =
   )
 
 lazy val nsq = project
-  .settings(nsqSettings)
   .enablePlugins(JavaAppPackaging, SnowplowDockerPlugin, BuildInfoPlugin)
+  .settings(dockerBaseImage := "eclipse-temurin:11-jre-noble")
+  .settings(nsqSettings)
   .dependsOn(core % "test->test;compile->compile")
 
 lazy val nsqDistroless = project
@@ -260,8 +265,9 @@ lazy val stdoutSettings =
   )
 
 lazy val stdout = project
-  .settings(stdoutSettings)
   .enablePlugins(JavaAppPackaging, SnowplowDockerPlugin, BuildInfoPlugin)
+  .settings(dockerBaseImage := "eclipse-temurin:11-jre-noble")
+  .settings(stdoutSettings)
   .dependsOn(core % "test->test;compile->compile")
 
 lazy val stdoutDistroless = project
@@ -279,8 +285,9 @@ lazy val rabbitmqSettings =
   )
 
 lazy val rabbitmq = project
-  .settings(rabbitmqSettings)
   .enablePlugins(JavaAppPackaging, SnowplowDockerPlugin, BuildInfoPlugin)
+  .settings(dockerBaseImage := "eclipse-temurin:11-jre-noble")
+  .settings(rabbitmqSettings)
   .dependsOn(core % "test->test;compile->compile")
 
 lazy val rabbitmqDistroless = project

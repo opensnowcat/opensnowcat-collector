@@ -101,9 +101,9 @@ jobs:
           images: opensnowcat/opensnowcat-collector-${{ matrix.platform }}${{ matrix.suffix }}
           tags: |
             type=raw,value=latest,enable=${{ !contains(steps.ver.outputs.project_version, 'rc') }}
-            type=raw,value=latest-focal,enable=${{ !contains(steps.ver.outputs.project_version, 'rc') }}
+            type=raw,value=latest-noble,enable=${{ !contains(steps.ver.outputs.project_version, 'rc') }}
             type=raw,value=${{ steps.ver.outputs.project_version }}
-            type=raw,value=${{ steps.ver.outputs.project_version }}-focal
+            type=raw,value=${{ steps.ver.outputs.project_version }}-noble
           flavor: |
             latest=false
 
