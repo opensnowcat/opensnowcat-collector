@@ -49,7 +49,7 @@ jobs:
             pubsub/target/scala-2.12/opensnowcat-collector-google-pubsub-${{ steps.ver.outputs.project_version }}.jar
             sqs/target/scala-2.12/opensnowcat-collector-sqs-${{ steps.ver.outputs.project_version }}.jar
             stdout/target/scala-2.12/opensnowcat-collector-stdout-${{ steps.ver.outputs.project_version }}.jar
-            rabbitmq/target/scala-2.12/opensnowcat-collector-stdout-${{ steps.ver.outputs.project_version }}.jar
+            rabbitmq/target/scala-2.12/opensnowcat-collector-rabbitmq-${{ steps.ver.outputs.project_version }}.jar
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
