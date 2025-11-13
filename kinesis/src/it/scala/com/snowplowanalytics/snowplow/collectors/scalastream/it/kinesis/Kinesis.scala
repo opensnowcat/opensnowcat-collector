@@ -14,24 +14,24 @@
  */
 package com.snowplowanalytics.snowplow.collectors.scalastream.it.kinesis
 
+import cats.effect.{IO, Resource}
+import com.snowplowanalytics.snowplow.CollectorPayload.thrift.model1.CollectorPayload
+import com.snowplowanalytics.snowplow.badrows.BadRow
+import com.snowplowanalytics.snowplow.collectors.scalastream.it.CollectorOutput
+import com.snowplowanalytics.snowplow.collectors.scalastream.it.kinesis.containers.Localstack
+import com.snowplowanalytics.snowplow.collectors.scalastream.it.utils._
+import software.amazon.awssdk.auth.credentials.{AwsBasicCredentials, StaticCredentialsProvider}
+import software.amazon.awssdk.regions.Region
+import software.amazon.awssdk.services.kinesis.KinesisClient
+import software.amazon.awssdk.services.kinesis.model.{
+  DescribeStreamRequest,
+  GetRecordsRequest,
+  GetShardIteratorRequest,
+  Record
+}
+
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
-
-import cats.effect.{IO, Resource}
-
-import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration
-import com.amazonaws.auth.{AWSStaticCredentialsProvider, BasicAWSCredentials}
-import com.amazonaws.services.kinesis.{AmazonKinesis, AmazonKinesisClientBuilder}
-import com.amazonaws.services.kinesis.model.{GetRecordsRequest, Record}
-
-import com.snowplowanalytics.snowplow.CollectorPayload.thrift.model1.CollectorPayload
-
-import com.snowplowanalytics.snowplow.badrows.BadRow
-
-import com.snowplowanalytics.snowplow.collectors.scalastream.it.CollectorOutput
-import com.snowplowanalytics.snowplow.collectors.scalastream.it.utils._
-
-import com.snowplowanalytics.snowplow.collectors.scalastream.it.kinesis.containers.Localstack
 
 object Kinesis {
 
@@ -43,19 +43,23 @@ object Kinesis {
       } yield CollectorOutput(good, bad)
     }
 
-  private def resourceClient: Resource[IO, AmazonKinesis] =
+  private def resourceClient: Resource[IO, KinesisClient] =
     Resource.make(
       IO(
-        AmazonKinesisClientBuilder
-          .standard()
-          .withCredentials(new AWSStaticCredentialsProvider(new BasicAWSCredentials("whatever", "whatever")))
-          .withEndpointConfiguration(new EndpointConfiguration(Localstack.publicEndpoint, Localstack.region))
-          .build
+        KinesisClient.builder()
+          .credentialsProvider(
+            StaticCredentialsProvider.create(
+              AwsBasicCredentials.create("whatever", "whatever")
+            )
+          )
+          .region(Region.of(Localstack.region))
+          .endpointOverride(java.net.URI.create(Localstack.publicEndpoint))
+          .build()
       )
-    )(client => IO(client.shutdown()))
+    )(client => IO(client.close()))
 
   private def consumeGood(
-    kinesis: AmazonKinesis,
+    kinesis: KinesisClient,
     streamName: String
   ): IO[List[CollectorPayload]] =
     for {
@@ -64,7 +68,7 @@ object Kinesis {
     } yield good
 
   private def consumeBad(
-    kinesis: AmazonKinesis,
+    kinesis: KinesisClient,
     streamName: String
   ): IO[List[BadRow]] =
     for {
@@ -73,18 +77,31 @@ object Kinesis {
     } yield bad
 
   private def consumeStream(
-    kinesis: AmazonKinesis,
+    kinesis: KinesisClient,
     streamName: String
   ): IO[List[Array[Byte]]] = {
-    val shardId           = kinesis.describeStream(streamName).getStreamDescription.getShards.get(0).getShardId
-    val iterator          = kinesis.getShardIterator(streamName, shardId, "TRIM_HORIZON").getShardIterator
-    val getRecordsRequest = new GetRecordsRequest().withShardIterator(iterator)
+    val describeStreamRequest = DescribeStreamRequest.builder()
+      .streamName(streamName)
+      .build()
+    val shardId = kinesis.describeStream(describeStreamRequest)
+      .streamDescription().shards().get(0).shardId()
 
-    IO(kinesis.getRecords(getRecordsRequest).getRecords.asScala.toList.map(getPayload))
+    val getShardIteratorRequest = GetShardIteratorRequest.builder()
+      .streamName(streamName)
+      .shardId(shardId)
+      .shardIteratorType("TRIM_HORIZON")
+      .build()
+    val iterator = kinesis.getShardIterator(getShardIteratorRequest).shardIterator()
+
+    val getRecordsRequest = GetRecordsRequest.builder()
+      .shardIterator(iterator)
+      .build()
+
+    IO(kinesis.getRecords(getRecordsRequest).records().asScala.toList.map(getPayload))
   }
 
   def getPayload(record: Record): Array[Byte] = {
-    val data   = record.getData()
+    val data   = record.data().asByteBuffer()
     val buffer = ArrayBuffer[Byte]()
     while (data.hasRemaining())
       buffer.append(data.get)

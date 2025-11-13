@@ -12,34 +12,30 @@
  */
 package com.snowplowanalytics.snowplow.collectors.scalastream.sinks
 
+import cats.syntax.either._
+import com.snowplowanalytics.snowplow.collectors.scalastream.model._
+import software.amazon.awssdk.auth.credentials._
+import software.amazon.awssdk.regions.Region
+import software.amazon.awssdk.services.sqs.SqsClient
+import software.amazon.awssdk.services.sqs.model.{
+  GetQueueUrlRequest,
+  MessageAttributeValue,
+  SendMessageBatchRequest,
+  SendMessageBatchRequestEntry
+}
+
 import java.nio.ByteBuffer
 import java.util.UUID
 import java.util.concurrent.ScheduledExecutorService
-
-import scala.collection.mutable.ListBuffer
-import scala.util.{Failure, Random, Success, Try}
-import scala.concurrent.{ExecutionContextExecutorService, Future}
-import scala.concurrent.duration.MILLISECONDS
 import scala.collection.JavaConverters._
-
-import cats.syntax.either._
-
-import com.amazonaws.auth.{
-  AWSCredentialsProvider,
-  AWSStaticCredentialsProvider,
-  BasicAWSCredentials,
-  DefaultAWSCredentialsProviderChain,
-  EnvironmentVariableCredentialsProvider,
-  InstanceProfileCredentialsProvider
-}
-import com.amazonaws.services.sqs.{AmazonSQS, AmazonSQSClientBuilder}
-import com.amazonaws.services.sqs.model.{MessageAttributeValue, SendMessageBatchRequest, SendMessageBatchRequestEntry}
-
-import com.snowplowanalytics.snowplow.collectors.scalastream.model._
+import scala.collection.mutable.ListBuffer
+import scala.concurrent.duration.MILLISECONDS
+import scala.concurrent.{ExecutionContextExecutorService, Future}
+import scala.util.{Failure, Random, Success, Try}
 
 class SqsSink private (
   val maxBytes: Int,
-  client: AmazonSQS,
+  client: SqsClient,
   sqsConfig: Sqs,
   bufferConfig: BufferConfig,
   queueName: String,
@@ -174,22 +170,21 @@ class SqsSink private (
       toSqsMessages(batch)
         .grouped(MaxSqsBatchSizeN)
         .flatMap { msgGroup =>
-          val entries = msgGroup.map(_._2)
-          val batchRequest =
-            new SendMessageBatchRequest().withQueueUrl(queueName).withEntries(entries.asJava)
-          val response = client.sendMessageBatch(batchRequest)
+          val entries      = msgGroup.map(_._2)
+          val batchRequest = SendMessageBatchRequest.builder().queueUrl(queueName).entries(entries.asJava).build()
+          val response     = client.sendMessageBatch(batchRequest)
           val failures = response
-            .getFailed
+            .failed()
             .asScala
             .toList
             .map { bree =>
-              (bree.getId, BatchResultErrorInfo(bree.getCode, bree.getMessage))
+              (bree.id(), BatchResultErrorInfo(bree.code(), bree.message()))
             }
             .toMap
           // Events to retry and reasons for failure
           msgGroup.collect {
-            case (e, m) if failures.contains(m.getId) =>
-              (e, failures(m.getId))
+            case (e, m) if failures.contains(m.id()) =>
+              (e, failures(m.id()))
           }
         }
         .toList
@@ -199,12 +194,17 @@ class SqsSink private (
     events.map(e =>
       (
         e,
-        new SendMessageBatchRequestEntry(UUID.randomUUID.toString, b64Encode(e.payloads)).withMessageAttributes(
-          Map(
-            "kinesisKey" ->
-              new MessageAttributeValue().withDataType("String").withStringValue(e.key)
-          ).asJava
-        )
+        SendMessageBatchRequestEntry
+          .builder()
+          .id(UUID.randomUUID.toString)
+          .messageBody(b64Encode(e.payloads))
+          .messageAttributes(
+            Map(
+              "kinesisKey" ->
+                MessageAttributeValue.builder().dataType("String").stringValue(e.key).build()
+            ).asJava
+          )
+          .build()
       )
     )
 
@@ -246,7 +246,9 @@ class SqsSink private (
       override def run() {
         while (!sqsHealthy)
           Try {
-            client.getQueueUrl(queueName)
+            client.getQueueUrl(
+              GetQueueUrlRequest.builder().queueName(queueName).build()
+            )
           } match {
             case Success(_) =>
               log.info(s"SQS queue $queueName exists")
@@ -300,33 +302,35 @@ object SqsSink {
   }
 
   /** Create an aws credentials provider through env variables and iam. */
-  private def getProvider(awsConfig: AWSConfig): Either[Throwable, AWSCredentialsProvider] = {
+  private def getProvider(awsConfig: AWSConfig): Either[Throwable, AwsCredentialsProvider] = {
     def isDefault(key: String): Boolean = key == "default"
     def isIam(key: String): Boolean     = key == "iam"
     def isEnv(key: String): Boolean     = key == "env"
 
     ((awsConfig.accessKey, awsConfig.secretKey) match {
       case (a, s) if isDefault(a) && isDefault(s) =>
-        new DefaultAWSCredentialsProviderChain().asRight
+        DefaultCredentialsProvider.builder().build().asRight
       case (a, s) if isDefault(a) || isDefault(s) =>
         "accessKey and secretKey must both be set to 'default' or neither".asLeft
       case (a, s) if isIam(a) && isIam(s) =>
-        InstanceProfileCredentialsProvider.getInstance().asRight
-      case (a, s) if isIam(a) && isIam(s) =>
+        InstanceProfileCredentialsProvider.builder().build().asRight
+      case (a, s) if isIam(a) || isIam(s) =>
         "accessKey and secretKey must both be set to 'iam' or neither".asLeft
       case (a, s) if isEnv(a) && isEnv(s) =>
-        new EnvironmentVariableCredentialsProvider().asRight
+        EnvironmentVariableCredentialsProvider.create().asRight
       case (a, s) if isEnv(a) || isEnv(s) =>
         "accessKey and secretKey must both be set to 'env' or neither".asLeft
       case _ =>
-        new AWSStaticCredentialsProvider(
-          new BasicAWSCredentials(awsConfig.accessKey, awsConfig.secretKey)
-        ).asRight
+        StaticCredentialsProvider
+          .create(
+            AwsBasicCredentials.create(awsConfig.accessKey, awsConfig.secretKey)
+          )
+          .asRight
     }).leftMap(new IllegalArgumentException(_))
   }
 
-  private def createSqsClient(provider: AWSCredentialsProvider, region: String): Either[Throwable, AmazonSQS] =
+  private def createSqsClient(provider: AwsCredentialsProvider, region: String): Either[Throwable, SqsClient] =
     Either.catchNonFatal(
-      AmazonSQSClientBuilder.standard().withRegion(region).withCredentials(provider).build
+      SqsClient.builder().region(Region.of(region)).credentialsProvider(provider).build()
     )
 }
