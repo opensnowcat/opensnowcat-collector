@@ -41,6 +41,7 @@ object Dependencies {
     val guava       = "32.1.3-jre"
     val nettyAll    = "4.1.128.Final"
     val commonsLang = "3.18.0"
+    val grpcNettyShaded = "1.76.1"
 
     // Scala
     val collectorPayload = "0.0.0"
@@ -88,6 +89,7 @@ object Dependencies {
     val guava          = "com.google.guava"         % "guava"            % V.guava
     val nettyAll       = "io.netty"                 % "netty-all"        % V.nettyAll
     val commonsLang3   = "org.apache.commons"       % "commons-lang3"    % V.commonsLang
+    val grpcNettyShaded = "io.grpc"                 % "grpc-netty-shaded" % V.grpcNettyShaded
 
     // Scala
     val collectorPayload = "com.snowplowanalytics"  % "collector-payload-1"               % V.collectorPayload

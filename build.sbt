@@ -181,6 +181,7 @@ lazy val pubsubSettings =
       Dependencies.Libraries.pubsub,
       Dependencies.Libraries.protobuf,
       Dependencies.Libraries.guava,
+      Dependencies.Libraries.grpcNettyShaded,
       
       // integration tests dependencies
       Dependencies.Libraries.specs2It,
