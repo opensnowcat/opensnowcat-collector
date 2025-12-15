@@ -213,6 +213,28 @@ collector {
       # If a record is bigger, a size violation bad row is emitted instead
       # Default: 1 MB
       maxBytes = 1000000
+
+      # Optional: SQS integration for redundancy or backup
+      #sqs {
+      #  # Mode: "mirror" (writes to both Kafka and SQS always) or "backup" (writes to SQS only when Kafka fails)
+      #  mode = "mirror"  # Options: "mirror" or "backup"
+      #
+      #  region = "eu-central-1"
+      #  threadPoolSize = 8
+      #  startupCheckInterval = 10 seconds
+      #  maxBufferSize = 100000
+      #  goodQueueUrl = "https://sqs.eu-central-1.amazonaws.com/123456789012/good-events"
+      #  badQueueUrl = "https://sqs.eu-central-1.amazonaws.com/123456789012/bad-events"
+      #  aws {
+      #    accessKey = iam
+      #    secretKey = iam
+      #  }
+      #  backoffPolicy {
+      #    minBackoff = 1000
+      #    maxBackoff = 10000
+      #    maxRetries = 10
+      #  }
+      #}
     }
 
     # Incoming events are stored in a buffer before being sent to Kinesis/Kafka.

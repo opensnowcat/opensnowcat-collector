@@ -1,0 +1,42 @@
+collector {
+  interface = "0.0.0.0"
+  port = 8080
+
+  streams {
+    good = "good"
+    bad = "bad"
+
+    sink {
+      enabled = kafka
+      brokers = "localhost:9092,another.host:9092"
+      retries = 10
+      maxBytes = 1000000
+
+      sqs {
+        mode = "mirror"
+        region = "us-east-1"
+        threadPoolSize = 10
+        startupCheckInterval = 5 seconds
+        maxBufferSize = 50000
+        goodQueueUrl = "https://sqs.us-east-1.amazonaws.com/123456789/good-events"
+        badQueueUrl = "https://sqs.us-east-1.amazonaws.com/123456789/bad-events"
+        aws {
+          accessKey = iam
+          secretKey = iam
+        }
+        backoffPolicy {
+          minBackoff = 500
+          maxBackoff = 5000
+          maxRetries = 5
+        }
+      }
+    }
+
+    buffer {
+      byteLimit = 3145728
+      recordLimit = 500
+      timeLimit = 5000
+    }
+  }
+}
+

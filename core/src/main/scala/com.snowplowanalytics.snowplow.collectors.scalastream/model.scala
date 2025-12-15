@@ -143,7 +143,8 @@ package model {
     maxBytes: Int,
     brokers: String,
     retries: Int,
-    producerConf: Option[Map[String, String]]
+    producerConf: Option[Map[String, String]],
+    sqs: Option[Kafka.SQS] = None
   ) extends SinkConfig
   final case class Nsq(maxBytes: Int, host: String, port: Int) extends SinkConfig
   final case class Stdout(maxBytes: Int) extends SinkConfig
@@ -269,6 +270,20 @@ package model {
 
     implicit def collectorConfigReader: ConfigReader[CollectorConfig] =
       deriveReader[CollectorConfig]
+  }
+
+  object Kafka {
+    final case class SQS(
+      mode: String, // "mirror" or "backup"
+      region: String,
+      threadPoolSize: Int,
+      aws: AWSConfig,
+      backoffPolicy: SqsBackoffPolicyConfig,
+      startupCheckInterval: FiniteDuration,
+      goodQueueUrl: String,
+      badQueueUrl: String,
+      maxBufferSize: Int
+    )
   }
 
 }

@@ -13,11 +13,10 @@
 package com.snowplowanalytics.snowplow.collectors.scalastream
 package sinks
 
-import java.util.Properties
-
+import com.snowplowanalytics.snowplow.collectors.scalastream.model._
 import org.apache.kafka.clients.producer._
 
-import com.snowplowanalytics.snowplow.collectors.scalastream.model._
+import java.util.Properties
 
 /** Kafka Sink for the Scala Stream Collector
   */
@@ -28,7 +27,8 @@ class KafkaSink(
   topicName: String
 ) extends Sink {
 
-  private val kafkaProducer = createProducer
+  private val kafkaProducer     = createProducer
+  @volatile private var healthy = true
 
   /** Creates a new Kafka Producer with the given
     * configuration options
@@ -66,11 +66,18 @@ class KafkaSink(
         new ProducerRecord(topicName, key, event),
         new Callback {
           override def onCompletion(metadata: RecordMetadata, e: Exception): Unit =
-            if (e != null) log.error(s"Sending event failed: ${e.getMessage}")
+            if (e != null) {
+              healthy = false
+              log.error(s"Sending event failed: ${e.getMessage}")
+            } else {
+              healthy = true
+            }
         }
       )
     }
   }
+
+  override def isHealthy: Boolean = healthy
 
   override def shutdown(): Unit =
     kafkaProducer.close()

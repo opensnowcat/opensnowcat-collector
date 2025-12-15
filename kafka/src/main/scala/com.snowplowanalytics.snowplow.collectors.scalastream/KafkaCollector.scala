@@ -15,7 +15,7 @@
 package com.snowplowanalytics.snowplow.collectors.scalastream
 
 import com.snowplowanalytics.snowplow.collectors.scalastream.model._
-import com.snowplowanalytics.snowplow.collectors.scalastream.sinks.KafkaSink
+import com.snowplowanalytics.snowplow.collectors.scalastream.sinks.{KafkaSink, SQSBackupSink, SQSMirrorSink}
 import com.snowplowanalytics.snowplow.collectors.scalastream.telemetry.TelemetryPekkoService
 import com.snowplowanalytics.snowplow.collectors.scalastream.generated.BuildInfo
 
@@ -33,10 +33,31 @@ object KafkaCollector extends Collector {
       val bufferConf = collectorConf.streams.buffer
       val (good, bad) = collectorConf.streams.sink match {
         case kc: Kafka =>
-          (
-            new KafkaSink(kc.maxBytes, kc, bufferConf, goodStream),
-            new KafkaSink(kc.maxBytes, kc, bufferConf, badStream)
-          )
+          val baseGood = new KafkaSink(kc.maxBytes, kc, bufferConf, goodStream)
+          val baseBad  = new KafkaSink(kc.maxBytes, kc, bufferConf, badStream)
+          kc.sqs match {
+            case Some(sqsConf) =>
+              sqsConf.mode.toLowerCase match {
+                case "mirror" =>
+                  log.info("Kafka SQS mode: MIRROR - Events will be written to BOTH Kafka and SQS")
+                  (
+                    SQSMirrorSink.create(baseGood, sqsConf, bufferConf, sqsConf.goodQueueUrl, "good"),
+                    SQSMirrorSink.create(baseBad, sqsConf, bufferConf, sqsConf.badQueueUrl, "bad")
+                  )
+                case "backup" =>
+                  log.info("Kafka SQS mode: BACKUP - Events will be written to SQS only when Kafka fails")
+                  (
+                    SQSBackupSink.create(baseGood, sqsConf, bufferConf, sqsConf.goodQueueUrl, "good"),
+                    SQSBackupSink.create(baseBad, sqsConf, bufferConf, sqsConf.badQueueUrl, "bad")
+                  )
+                case other =>
+                  log.warn(s"Unknown SQS mode: '$other', expected 'mirror' or 'backup'. Defaulting to Kafka-only mode.")
+                  (baseGood, baseBad)
+              }
+            case None =>
+              log.info("Kafka SQS integration disabled; publishing to Kafka only")
+              (baseGood, baseBad)
+          }
         case _ => throw new IllegalArgumentException("Configured sink is not Kafka")
       }
       CollectorSinks(good, bad)
