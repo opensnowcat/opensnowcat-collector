@@ -179,23 +179,29 @@ abstract class ConfigSpec extends Specification {
           case ("kafka", "extended") =>
             // Extended Kafka config includes sqs configuration
             configRefFactory(app).copy(
-              streams = configRefFactory(app).streams.copy(
-                sink = configRefFactory(app).streams.sink.asInstanceOf[Kafka].copy(
-                  sqs = Some(
-                    Kafka.SQS(
-                      mode = "mirror",
-                      region = "us-east-1",
-                      threadPoolSize = 10,
-                      aws = AWSConfig("iam", "iam"),
-                      backoffPolicy = SqsBackoffPolicyConfig(500, 5000, 5),
-                      startupCheckInterval = 5.seconds,
-                      goodQueueUrl = "https://sqs.us-east-1.amazonaws.com/123456789/good-events",
-                      badQueueUrl = "https://sqs.us-east-1.amazonaws.com/123456789/bad-events",
-                      maxBufferSize = 50000
+              streams = configRefFactory(app)
+                .streams
+                .copy(
+                  sink = configRefFactory(app)
+                    .streams
+                    .sink
+                    .asInstanceOf[Kafka]
+                    .copy(
+                      sqs = Some(
+                        Kafka.SQS(
+                          mode = "mirror",
+                          region = "us-east-1",
+                          threadPoolSize = 10,
+                          aws = AWSConfig("iam", "iam"),
+                          backoffPolicy = SqsBackoffPolicyConfig(500, 5000, 5),
+                          startupCheckInterval = 5.seconds,
+                          goodQueueUrl = "https://sqs.us-east-1.amazonaws.com/123456789/good-events",
+                          badQueueUrl = "https://sqs.us-east-1.amazonaws.com/123456789/bad-events",
+                          maxBufferSize = 50000
+                        )
+                      )
                     )
-                  )
                 )
-              )
             )
           case _ =>
             configRefFactory(app)
