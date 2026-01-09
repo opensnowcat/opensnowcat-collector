@@ -13,7 +13,6 @@ collector {
       maxBytes = 1000000
 
       sqs {
-        mode = "mirror"
         region = "us-east-1"
         threadPoolSize = 10
         startupCheckInterval = 5 seconds

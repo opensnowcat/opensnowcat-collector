@@ -216,13 +216,14 @@ final private[sinks] class SQSPublisher(
       new Runnable {
         override def run(): Unit =
           try {
-            client.getQueueUrl(queueUrl)
-            log.info(s"SQS mirror queue $queueLabel reachable")
+            import com.amazonaws.services.sqs.model.GetQueueAttributesRequest
+            client.getQueueAttributes(new GetQueueAttributesRequest(queueUrl).withAttributeNames("QueueArn"))
+            log.info(s"SQS backup queue $queueLabel reachable")
             sqsHealthy = true
           } catch {
             case e: Throwable =>
               log.warn(
-                s"SQS mirror queue $queueLabel not reachable: ${e.getMessage}; will retry"
+                s"SQS backup queue $queueLabel not reachable: ${e.getMessage}; will retry"
               )
               checkSqsHealth()
           }

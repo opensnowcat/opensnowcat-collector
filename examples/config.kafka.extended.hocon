@@ -215,16 +215,18 @@ collector {
       maxBytes = 1000000
 
       # Optional: SQS integration for redundancy or backup
+      # When enabled, events are written to SQS only when Kafka fails (failover/backup mode)
       #sqs {
-      #  # Mode: "mirror" (writes to both Kafka and SQS always) or "backup" (writes to SQS only when Kafka fails)
-      #  mode = "mirror"  # Options: "mirror" or "backup"
-      #
       #  region = "eu-central-1"
       #  threadPoolSize = 8
       #  startupCheckInterval = 10 seconds
       #  maxBufferSize = 100000
+      #
+      #  # IMPORTANT: Must be FULL queue URLs (not just queue names)
+      #  # Format: https://sqs.{region}.amazonaws.com/{account-id}/{queue-name}
       #  goodQueueUrl = "https://sqs.eu-central-1.amazonaws.com/123456789012/good-events"
       #  badQueueUrl = "https://sqs.eu-central-1.amazonaws.com/123456789012/bad-events"
+      #
       #  aws {
       #    accessKey = iam
       #    secretKey = iam

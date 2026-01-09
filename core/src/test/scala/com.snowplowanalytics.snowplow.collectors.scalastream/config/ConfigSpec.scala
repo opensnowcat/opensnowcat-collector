@@ -189,7 +189,6 @@ abstract class ConfigSpec extends Specification {
                     .copy(
                       sqs = Some(
                         Kafka.SQS(
-                          mode = "mirror",
                           region = "us-east-1",
                           threadPoolSize = 10,
                           aws = AWSConfig("iam", "iam"),

@@ -274,7 +274,6 @@ package model {
 
   object Kafka {
     final case class SQS(
-      mode: String, // "mirror" or "backup"
       region: String,
       threadPoolSize: Int,
       aws: AWSConfig,
