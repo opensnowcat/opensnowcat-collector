@@ -144,8 +144,16 @@ package model {
     brokers: String,
     retries: Int,
     producerConf: Option[Map[String, String]],
-    sqs: Option[Kafka.SQS] = None
+    sqs: Option[Kafka.SQS] = None,
+    kafkaTimeouts: Option[KafkaTimeouts] = None
   ) extends SinkConfig
+
+  final case class KafkaTimeouts(
+    maxBlockMs: Int = 5000,
+    requestTimeoutMs: Int = 5000,
+    deliveryTimeoutMs: Int = 10000,
+    metadataMaxAgeMs: Int = 5000
+  )
   final case class Nsq(maxBytes: Int, host: String, port: Int) extends SinkConfig
   final case class Stdout(maxBytes: Int) extends SinkConfig
   final case class Rabbitmq(

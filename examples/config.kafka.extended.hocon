@@ -209,6 +209,39 @@ collector {
       #  "value.serializer"   = "org.apache.kafka.common.serialization.StringSerializer"
       #}
 
+      # Kafka timeout configurations to prevent blocking when Kafka is unavailable
+      # These settings control how quickly the collector fails over to SQS backup (if configured)
+      kafkaTimeouts {
+        # Maximum time (ms) to block when Kafka is unavailable before failover
+        # Controls how long send() and partitionsFor() will block
+        # Trade-offs:
+        #   - Higher values: More resilient to brief network hiccups, but slower failover to SQS
+        #   - Lower values: Faster failover, but may prematurely fail during transient issues
+        # Recommendation: Set based on your network latency + typical Kafka recovery time
+        # Default: 5000 (5 seconds) - suitable for most environments
+        maxBlockMs = 5000
+
+        # Maximum time (ms) for a request to complete
+        # Controls the timeout for individual produce requests
+        # Should align with your Kafka broker's request.timeout.ms setting
+        # Default: 5000 (5 seconds)
+        requestTimeoutMs = 5000
+
+        # Maximum time (ms) for the entire delivery process (including retries)
+        # Should be >= request.timeout.ms to allow for retries
+        # Formula: request.timeout.ms + (retry_time * retries)
+        # Default: 10000 (10 seconds)
+        deliveryTimeoutMs = 10000
+
+        # Maximum age (ms) of metadata before forcing a refresh
+        # Trade-offs:
+        #   - Lower values: Detect Kafka failures faster, but more network overhead
+        #   - Higher values: Less network overhead, but slower failure detection
+        # Recommendation: Balance between failure detection speed and network efficiency
+        # Default: 5000 (5 seconds)
+        metadataMaxAgeMs = 5000
+      }
+
       # Optional. Maximum number of bytes that a single record can contain.
       # If a record is bigger, a size violation bad row is emitted instead
       # Default: 1 MB
@@ -246,8 +279,18 @@ collector {
     # - the combined size of the stored records reaches byte-limit or
     # - the time in milliseconds since the buffer was last emptied reaches time-limit
     buffer {
+      # Maximum buffer size in bytes (3MB)
+      # For high-volume production, consider increasing to 10485760 (10MB)
       byteLimit = 3145728
+
+      # Maximum number of records before flush
+      # For high-volume production, consider increasing to 1000
       recordLimit = 500
+
+      # Maximum time to buffer before flush (5 seconds)
+      # Balances latency vs. efficiency
+      # Lower values = lower latency but more API calls
+      # Higher values = higher latency but fewer API calls
       timeLimit = 5000
     }
   }

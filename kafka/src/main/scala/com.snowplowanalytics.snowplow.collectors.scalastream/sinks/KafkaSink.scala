@@ -48,6 +48,13 @@ class KafkaSink(
     props.setProperty("key.serializer", "org.apache.kafka.common.serialization.StringSerializer")
     props.setProperty("value.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer")
 
+    // Timeout configurations to prevent blocking when Kafka is down
+    val timeouts = kafkaConfig.kafkaTimeouts.getOrElse(KafkaTimeouts())
+    props.setProperty("max.block.ms", timeouts.maxBlockMs.toString)
+    props.setProperty("request.timeout.ms", timeouts.requestTimeoutMs.toString)
+    props.setProperty("delivery.timeout.ms", timeouts.deliveryTimeoutMs.toString)
+    props.setProperty("metadata.max.age.ms", timeouts.metadataMaxAgeMs.toString)
+
     // Can't use `putAll` in JDK 11 because of https://github.com/scala/bug/issues/10418
     kafkaConfig.producerConf.getOrElse(Map()).foreach { case (k, v) => props.setProperty(k, v) }
 

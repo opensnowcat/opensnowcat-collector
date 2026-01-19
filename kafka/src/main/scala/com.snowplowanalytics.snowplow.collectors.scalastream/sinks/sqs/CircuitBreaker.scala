@@ -80,17 +80,19 @@ private[sinks] class CircuitBreaker(
     state.get() match {
       case HalfOpen =>
         // Successful test request, close the circuit
-        state.set(Closed)
-        failureCount.set(0)
+        if (state.compareAndSet(HalfOpen, Closed)) {
+          failureCount.set(0)
+        }
 
       case Closed =>
         // Reset failure count on success
         failureCount.set(0)
 
       case Open =>
-        // Shouldn't happen, but reset anyway
-        state.set(Closed)
-        failureCount.set(0)
+        // Shouldn't happen, but try to close anyway
+        if (state.compareAndSet(Open, Closed)) {
+          failureCount.set(0)
+        }
     }
 
   private def onFailure(): Unit = {
@@ -99,13 +101,14 @@ private[sinks] class CircuitBreaker(
     state.get() match {
       case HalfOpen =>
         // Test request failed, reopen circuit
-        state.set(Open)
+        state.compareAndSet(HalfOpen, Open)
         val _ = failureCount.incrementAndGet()
 
       case Closed =>
         val failures = failureCount.incrementAndGet()
         if (failures >= maxFailures) {
-          state.set(Open)
+          // Try to open circuit atomically
+          val _ = state.compareAndSet(Closed, Open)
         }
 
       case Open =>

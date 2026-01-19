@@ -12,7 +12,7 @@ import scala.concurrent.duration.{MILLISECONDS, _}
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
-/** Publisher that mirrors events to SQS with buffering, retries, and circuit breaker.
+/** Publisher that publishes events to SQS with buffering, retries, and circuit breaker.
   *
   * @param sqsConfig SQS configuration
   * @param bufferConfig Buffer thresholds
@@ -55,7 +55,7 @@ final private[sinks] class SQSPublisher(
     new java.util.concurrent.ThreadFactory {
       private val counter = new java.util.concurrent.atomic.AtomicInteger(0)
       def newThread(r: Runnable): Thread = {
-        val t = new Thread(r, s"sqs-mirror-io-$queueLabel-${counter.getAndIncrement()}")
+        val t = new Thread(r, s"sqs-backup-io-$queueLabel-${counter.getAndIncrement()}")
         t.setDaemon(true)
         t
       }
@@ -75,14 +75,14 @@ final private[sinks] class SQSPublisher(
     val finalBatch = buffer.drain()
 
     if (finalBatch.nonEmpty) {
-      log.info(s"Performing final flush of ${finalBatch.size} events for SQS mirror queue $queueLabel")
+      log.info(s"Performing final flush of ${finalBatch.size} events for SQS backup queue $queueLabel")
       try {
         // Synchronous write with timeout
         Await.result(writeBatchToSqs(finalBatch), 30.seconds)
-        log.info(s"Final flush completed for SQS mirror queue $queueLabel")
+        log.info(s"Final flush completed for SQS backup queue $queueLabel")
       } catch {
         case e: Exception =>
-          log.error(s"Final flush failed for SQS mirror queue $queueLabel: ${e.getMessage}", e)
+          log.error(s"Final flush failed for SQS backup queue $queueLabel: ${e.getMessage}", e)
       }
     }
 
@@ -94,18 +94,24 @@ final private[sinks] class SQSPublisher(
     ()
   }
 
-  def mirror(events: List[Array[Byte]], key: String): Unit =
+  def publish(events: List[Array[Byte]], key: String): Unit =
     events.foreach { payload =>
       val status = buffer.store(payload, key)
 
       if (status.overflowed) {
-        log.warn(s"SQS mirror buffer full (${sqsConfig.maxBufferSize} events), dropped 1 event")
+        log.warn(s"SQS backup buffer full (${sqsConfig.maxBufferSize} events), dropped 1 event")
       }
 
       if (status.shouldFlush) {
-        flush()
+        // Schedule flush asynchronously to avoid blocking the HTTP request thread
+        scheduleImmediateFlush()
       }
     }
+
+  private def scheduleImmediateFlush(): Unit =
+    executorService.execute(new Runnable {
+      override def run(): Unit = flush()
+    })
 
   def isHealthy: Boolean = sqsHealthy && !circuitBreaker.isOpen
 
@@ -140,14 +146,14 @@ final private[sinks] class SQSPublisher(
   private def sinkBatch(batch: List[EventBuffer.Event], nextBackoff: Long, retriesLeft: Int): Unit =
     if (batch.nonEmpty) {
       log.info(
-        s"Writing ${batch.size} records to SQS mirror queue $queueLabel (circuit: ${circuitBreaker.currentState})"
+        s"Writing ${batch.size} records to SQS backup queue $queueLabel (circuit: ${circuitBreaker.currentState})"
       )
 
       circuitBreaker.protect(writeBatchToSqs(batch)).onComplete {
         case Success(retryHints) =>
           sqsHealthy = retryHints.isEmpty
           if (retryHints.nonEmpty) {
-            log.warn(s"Retrying ${retryHints.size} records for SQS mirror queue $queueLabel")
+            log.warn(s"Retrying ${retryHints.size} records for SQS backup queue $queueLabel")
             handleError(retryHints.map(_._1), nextBackoff, retriesLeft)
           }
 
@@ -158,7 +164,7 @@ final private[sinks] class SQSPublisher(
 
         case Failure(err) =>
           log.error(
-            s"Writing ${batch.size} records to SQS mirror queue $queueLabel failed: ${err.getMessage}"
+            s"Writing ${batch.size} records to SQS backup queue $queueLabel failed: ${err.getMessage}"
           )
           handleError(batch, nextBackoff, retriesLeft)
       }
@@ -205,7 +211,7 @@ final private[sinks] class SQSPublisher(
       ()
     } else {
       log.error(
-        s"Maximum retries (${retryPolicy.maxRetries}) exhausted for SQS mirror queue $queueLabel; dropping ${batch.size} events"
+        s"Maximum retries (${retryPolicy.maxRetries}) exhausted for SQS backup queue $queueLabel; dropping ${batch.size} events"
       )
       sqsHealthy = false
       checkSqsHealth()

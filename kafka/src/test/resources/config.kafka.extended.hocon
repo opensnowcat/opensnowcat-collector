@@ -12,6 +12,13 @@ collector {
       retries = 10
       maxBytes = 1000000
 
+      kafkaTimeouts {
+        maxBlockMs = 5000
+        requestTimeoutMs = 5000
+        deliveryTimeoutMs = 10000
+        metadataMaxAgeMs = 5000
+      }
+
       sqs {
         region = "us-east-1"
         threadPoolSize = 10

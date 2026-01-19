@@ -19,56 +19,48 @@ final class SQSBackupSink(
 
   backup.start()
 
-  override def storeRawEvents(events: List[Array[Byte]], key: String): Unit = {
-    // Try Kafka first (primary)
-    val kafkaResult =
+  override def storeRawEvents(events: List[Array[Byte]], key: String): Unit =
+    // Check Kafka health first - if unhealthy, skip Kafka entirely
+    if (!kafkaSink.isHealthy) {
+      // Kafka is known to be unhealthy, go straight to SQS backup
+      SQSBackupSink.log.debug(s"Kafka unhealthy, routing ${events.size} events directly to SQS backup")
+      backup.publish(events, key)
+    } else {
+      // Try Kafka first (primary)
       try {
         kafkaSink.storeRawEvents(events, key)
-        Right(())
+        SQSBackupSink.log.debug(s"Successfully wrote ${events.size} events to Kafka")
       } catch {
         case ex: Throwable =>
+          // Kafka failed, failover to SQS
           SQSBackupSink
             .log
             .warn(
-              s"Kafka write failed for ${events.size} events, failing over to SQS backup",
-              ex
+              s"Kafka write failed for ${events.size} events, failing over to SQS backup: ${ex.getMessage}"
             )
-          Left(ex)
-      }
 
-    kafkaResult match {
-      case Right(_) =>
-        SQSBackupSink.log.debug(s"Successfully wrote ${events.size} events to Kafka")
-
-      case Left(kafkaError) =>
-        SQSBackupSink
-          .log
-          .info(
-            s"Kafka unavailable, writing ${events.size} events to SQS backup for recovery"
-          )
-
-        try {
-          backup.mirror(events, key)
-          SQSBackupSink
-            .log
-            .info(
-              s"Successfully wrote ${events.size} events to SQS backup - can recover when Kafka returns"
-            )
-        } catch {
-          case sqsError: Throwable =>
+          try {
+            backup.publish(events, key)
             SQSBackupSink
               .log
-              .error(
-                s"BOTH Kafka and SQS backup failed for ${events.size} events - data loss!",
-                sqsError
+              .info(
+                s"Successfully wrote ${events.size} events to SQS backup after Kafka failure"
               )
-            throw new RuntimeException(
-              s"Both Kafka and SQS backup write failed. Kafka: ${kafkaError.getMessage}, SQS: ${sqsError.getMessage}",
-              kafkaError
-            )
-        }
+          } catch {
+            case sqsError: Throwable =>
+              SQSBackupSink
+                .log
+                .error(
+                  s"BOTH Kafka and SQS backup failed for ${events.size} events",
+                  sqsError
+                )
+              throw new RuntimeException(
+                s"Both Kafka and SQS backup write failed. Kafka: ${ex.getMessage}, SQS: ${sqsError.getMessage}",
+                ex
+              )
+          }
+      }
     }
-  }
 
   override def isHealthy: Boolean = {
     val healthy = kafkaSink.isHealthy || backup.isHealthy
