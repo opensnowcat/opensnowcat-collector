@@ -19,6 +19,14 @@ collector {
         metadataMaxAgeMs = 5000
       }
 
+      backoffPolicy {
+        minBackoff = 500
+        maxBackoff = 5000
+        maxRetries = 10
+      }
+
+      startupCheckInterval = 5 seconds
+
       sqs {
         region = "us-east-1"
         threadPoolSize = 10

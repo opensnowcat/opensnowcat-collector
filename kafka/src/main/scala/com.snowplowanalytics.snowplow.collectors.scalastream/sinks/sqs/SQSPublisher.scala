@@ -20,7 +20,7 @@ import scala.util.{Failure, Success}
   * @param queueLabel Label for logging
   * @param executorService Scheduler for flush and health checks
   */
-final private[sinks] class SQSPublisher(
+final class SQSPublisher(
   sqsConfig: Kafka.SQS,
   bufferConfig: BufferConfig,
   queueUrl: String,

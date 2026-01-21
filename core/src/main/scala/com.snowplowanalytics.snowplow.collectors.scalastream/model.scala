@@ -145,7 +145,9 @@ package model {
     retries: Int,
     producerConf: Option[Map[String, String]],
     sqs: Option[Kafka.SQS] = None,
-    kafkaTimeouts: Option[KafkaTimeouts] = None
+    kafkaTimeouts: Option[KafkaTimeouts] = None,
+    backoffPolicy: KinesisBackoffPolicyConfig = KinesisBackoffPolicyConfig(500, 5000, 10),
+    startupCheckInterval: FiniteDuration = 5.seconds
   ) extends SinkConfig
 
   final case class KafkaTimeouts(
