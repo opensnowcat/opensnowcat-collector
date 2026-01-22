@@ -197,6 +197,10 @@ collector {
       brokers = "localhost:9092,another.host:9092"
       ## Number of retries to perform before giving up on sending a record
       retries = 10
+
+      # Thread pool size for Kafka async ops
+      threadPoolSize = 10
+
       # The kafka producer has a variety of possible configuration options defined at
       # https://kafka.apache.org/documentation/#producerconfigs
       # Some values are set to other values from this config by default:

@@ -144,6 +144,7 @@ package model {
     brokers: String,
     retries: Int,
     producerConf: Option[Map[String, String]],
+    threadPoolSize: Int = 10,
     sqs: Option[Kafka.SQS] = None,
     kafkaTimeouts: Option[KafkaTimeouts] = None,
     backoffPolicy: KinesisBackoffPolicyConfig = KinesisBackoffPolicyConfig(500, 5000, 10),

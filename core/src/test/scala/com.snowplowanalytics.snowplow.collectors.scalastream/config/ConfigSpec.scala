@@ -104,7 +104,13 @@ abstract class ConfigSpec extends Specification {
 
   def sinkConfigRefFactory(app: String): SinkConfig = app match {
     case "nsq"   => Nsq(maxBytes = 1000000, "nsqHost", 4150)
-    case "kafka" => Kafka(maxBytes = 1000000, "localhost:9092,another.host:9092", 10, None)
+    case "kafka" => Kafka(
+      maxBytes = 1000000,
+      brokers = "localhost:9092,another.host:9092",
+      retries = 10,
+      producerConf = None,
+      threadPoolSize = 10
+    )
     case "pubsub" =>
       GooglePubSub(
         maxBytes = 10000000,

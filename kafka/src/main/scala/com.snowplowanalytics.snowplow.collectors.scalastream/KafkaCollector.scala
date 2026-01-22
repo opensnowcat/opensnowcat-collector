@@ -36,7 +36,7 @@ object KafkaCollector extends Collector {
         case kc: Kafka =>
           // Create executor service for Kafka async operations and health checks
           val executorGood = new java.util.concurrent.ScheduledThreadPoolExecutor(
-            kc.sqs.map(_.threadPoolSize).getOrElse(10),
+            kc.threadPoolSize,
             new java.util.concurrent.ThreadFactory {
               private val counter = new java.util.concurrent.atomic.AtomicInteger(0)
               def newThread(r: Runnable): Thread = {
@@ -47,7 +47,7 @@ object KafkaCollector extends Collector {
             }
           )
           val executorBad = new java.util.concurrent.ScheduledThreadPoolExecutor(
-            kc.sqs.map(_.threadPoolSize).getOrElse(10),
+            kc.threadPoolSize,
             new java.util.concurrent.ThreadFactory {
               private val counter = new java.util.concurrent.atomic.AtomicInteger(0)
               def newThread(r: Runnable): Thread = {
