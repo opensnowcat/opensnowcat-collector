@@ -20,46 +20,16 @@ final class SQSBackupSink(
   backup.start()
 
   override def storeRawEvents(events: List[Array[Byte]], key: String): Unit =
-    // Check Kafka health first - if unhealthy, skip Kafka entirely
+    // Check Kafka health first - if unhealthy, skip Kafka entirely and go straight to SQS
     if (!kafkaSink.isHealthy) {
       // Kafka is known to be unhealthy, go straight to SQS backup
       SQSBackupSink.log.debug(s"Kafka unhealthy, routing ${events.size} events directly to SQS backup")
       backup.publish(events, key)
     } else {
-      // Try Kafka first (primary)
-      try {
-        kafkaSink.storeRawEvents(events, key)
-        SQSBackupSink.log.debug(s"Successfully wrote ${events.size} events to Kafka")
-      } catch {
-        case ex: Throwable =>
-          // Kafka failed, failover to SQS
-          SQSBackupSink
-            .log
-            .warn(
-              s"Kafka write failed for ${events.size} events, failing over to SQS backup: ${ex.getMessage}"
-            )
-
-          try {
-            backup.publish(events, key)
-            SQSBackupSink
-              .log
-              .info(
-                s"Successfully wrote ${events.size} events to SQS backup after Kafka failure"
-              )
-          } catch {
-            case sqsError: Throwable =>
-              SQSBackupSink
-                .log
-                .error(
-                  s"BOTH Kafka and SQS backup failed for ${events.size} events",
-                  sqsError
-                )
-              throw new RuntimeException(
-                s"Both Kafka and SQS backup write failed. Kafka: ${ex.getMessage}, SQS: ${sqsError.getMessage}",
-                ex
-              )
-          }
-      }
+      // Kafka is healthy - send to Kafka
+      // Events are buffered internally in KafkaSink and sent asynchronously in background
+      kafkaSink.storeRawEvents(events, key)
+      SQSBackupSink.log.debug(s"Buffered ${events.size} events for Kafka (will be flushed in background)")
     }
 
   override def isHealthy: Boolean = {
