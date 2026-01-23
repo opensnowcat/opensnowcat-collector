@@ -354,7 +354,10 @@ class KafkaSink(
     ()
   }
 
-  /** Calculate next backoff delay with exponential backoff and jitter.
+  /** Calculate next backoff delay with randomized jitter.
+    *
+    * Picks a random delay between minBackoff and maxBackoff, with a floor
+    * of 2/3 of the previous backoff to prevent rapid decrease between retries.
     *
     * @param lastBackoff The previous backoff time
     * @return Maximum of two-thirds of lastBackoff and a random number between minBackoff and maxBackoff
