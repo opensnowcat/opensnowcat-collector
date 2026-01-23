@@ -432,6 +432,7 @@ class KafkaSink(
 
   override def shutdown(): Unit = {
     EventStorage.flush()
+    kafkaProducer.flush()
     kafkaProducer.close()
     executorService.shutdown()
     executorService.awaitTermination(10000, MILLISECONDS)
