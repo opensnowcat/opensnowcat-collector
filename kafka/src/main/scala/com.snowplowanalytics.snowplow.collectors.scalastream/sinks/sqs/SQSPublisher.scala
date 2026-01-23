@@ -172,27 +172,49 @@ final class SQSPublisher(
 
   private def writeBatchToSqs(batch: List[EventBuffer.Event]): Future[List[(EventBuffer.Event, BatchResultErrorInfo)]] =
     Future {
+      // SQS has a hard 1 MiB limit per message (including body and attributes).
+      // We check the size of the Base64-encoded payload before sending.
+      val MaxSqsMessageBytes = 1024 * 1024 // 1 MiB = 1,048,576 bytes
+      
       batch
         .grouped(MaxSqsBatchSize)
         .flatMap { chunk =>
-          val entries = chunk.map { event =>
-            val encoded = java.util.Base64.getEncoder.encodeToString(event.payload)
-            val entry = new SendMessageBatchRequestEntry(UUID.randomUUID().toString, encoded).withMessageAttributes(
-              Map(
-                "kinesisKey" ->
-                  new MessageAttributeValue().withDataType("String").withStringValue(event.key)
-              ).asJava
+          val entries: List[(EventBuffer.Event, SendMessageBatchRequestEntry)] =
+            chunk.flatMap { event =>
+              val encoded = java.util.Base64.getEncoder.encodeToString(event.payload)
+              // Base64 output is ASCII, so the number of bytes equals encoded.length
+              val messageSizeBytes = encoded.length
+              if (messageSizeBytes > MaxSqsMessageBytes) {
+                log.error(
+                  s"Dropping event for SQS backup queue $queueLabel because its encoded size " +
+                    s"$messageSizeBytes bytes exceeds the SQS limit of $MaxSqsMessageBytes bytes"
+                )
+                None
+              } else {
+                val entry =
+                  new SendMessageBatchRequestEntry(UUID.randomUUID().toString, encoded)
+                    .withMessageAttributes(
+                      Map(
+                        "kinesisKey" ->
+                          new MessageAttributeValue().withDataType("String").withStringValue(event.key)
+                      ).asJava
+                    )
+                Some((event, entry))
+              }
+            }
+          
+          if (entries.isEmpty) {
+            List.empty
+          } else {
+            val result = client.sendMessageBatch(
+              new SendMessageBatchRequest().withQueueUrl(queueUrl).withEntries(entries.map(_._2).asJava)
             )
-            (event, entry)
-          }
-          val result = client.sendMessageBatch(
-            new SendMessageBatchRequest().withQueueUrl(queueUrl).withEntries(entries.map(_._2).asJava)
-          )
-          val failures =
-            result.getFailed.asScala.map(f => (f.getId, BatchResultErrorInfo(f.getCode, f.getMessage))).toMap
-          entries.collect {
-            case (event, entry) if failures.contains(entry.getId) =>
-              (event, failures(entry.getId))
+            val failures =
+              result.getFailed.asScala.map(f => (f.getId, BatchResultErrorInfo(f.getCode, f.getMessage))).toMap
+            entries.collect {
+              case (event, entry) if failures.contains(entry.getId) =>
+                (event, failures(entry.getId))
+            }
           }
         }
         .toList
