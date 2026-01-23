@@ -86,11 +86,10 @@ final class SQSPublisher(
       }
     }
 
+    // Only shut down resources we own (ioThreadPool)
+    // The executorService is shared with KafkaSink and will be shut down by its owner
     ioThreadPool.shutdown()
-    executorService.shutdown()
-
     ioThreadPool.awaitTermination(10, SECONDS)
-    executorService.awaitTermination(10, SECONDS)
     ()
   }
 
