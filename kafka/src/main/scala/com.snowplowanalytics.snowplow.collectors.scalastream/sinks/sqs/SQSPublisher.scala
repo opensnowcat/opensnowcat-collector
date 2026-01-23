@@ -29,9 +29,9 @@ final class SQSPublisher(
 ) {
   import SQSPublisher._
 
-  @volatile private var sqsHealthy: Boolean      = false
-  @volatile private var lastFlushedTime          = 0L
-  @volatile private var stopped: Boolean         = false
+  @volatile private var sqsHealthy: Boolean = false
+  @volatile private var lastFlushedTime     = 0L
+  @volatile private var stopped: Boolean    = false
 
   private val buffer = new EventBuffer(
     maxSize = sqsConfig.maxBufferSize,
