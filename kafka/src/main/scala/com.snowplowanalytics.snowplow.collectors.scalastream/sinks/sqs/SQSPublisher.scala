@@ -29,8 +29,9 @@ final class SQSPublisher(
 ) {
   import SQSPublisher._
 
-  @volatile private var sqsHealthy: Boolean = false
-  @volatile private var lastFlushedTime     = 0L
+  @volatile private var sqsHealthy: Boolean      = false
+  @volatile private var lastFlushedTime          = 0L
+  @volatile private var stopped: Boolean         = false
 
   private val buffer = new EventBuffer(
     maxSize = sqsConfig.maxBufferSize,
@@ -71,6 +72,9 @@ final class SQSPublisher(
   }
 
   def stop(): Unit = {
+    // Mark as stopped to prevent scheduled tasks from running
+    stopped = true
+
     // Synchronous final flush to prevent data loss
     val finalBatch = buffer.drain()
 
@@ -86,10 +90,11 @@ final class SQSPublisher(
       }
     }
 
-    // Only shut down resources we own (ioThreadPool)
+    // Shut down resources we own (ioThreadPool and AWS client)
     // The executorService is shared with KafkaSink and will be shut down by its owner
     ioThreadPool.shutdown()
     ioThreadPool.awaitTermination(10, SECONDS)
+    client.shutdown()
     ()
   }
 
@@ -112,9 +117,10 @@ final class SQSPublisher(
       override def run(): Unit = flush()
     })
 
-  def isHealthy: Boolean = sqsHealthy && !circuitBreaker.isOpen
+  def isHealthy: Boolean = sqsHealthy && !circuitBreaker.isOpen && !stopped
 
   private def flush(): Unit = {
+    if (stopped) return // Don't flush after stopped
     val eventsToSend = buffer.drain()
     if (eventsToSend.nonEmpty) {
       lastFlushedTime = System.currentTimeMillis()
@@ -123,6 +129,7 @@ final class SQSPublisher(
   }
 
   private def scheduleFlush(interval: Long = bufferConfig.timeLimit): Unit = {
+    if (stopped) return // Don't schedule tasks after stopped
     executorService.schedule(
       new Runnable {
         override def run(): Unit = {
@@ -238,6 +245,7 @@ final class SQSPublisher(
     }
 
   private def checkSqsHealth(): Unit = {
+    if (stopped) return // Don't schedule health checks after stopped
     executorService.schedule(
       new Runnable {
         override def run(): Unit =
