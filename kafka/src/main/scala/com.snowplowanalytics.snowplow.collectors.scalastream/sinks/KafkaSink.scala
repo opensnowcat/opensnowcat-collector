@@ -72,23 +72,19 @@ class KafkaSink(
 
   // Separate thread pool for blocking Kafka operations to avoid deadlock
   // When all main threads are blocked in latch.await(), we need separate threads for onComplete
-  private val blockingEc = scala
+  private val blockingExecutor = java
+    .util
     .concurrent
-    .ExecutionContext
-    .fromExecutor(
-      java
-        .util
-        .concurrent
-        .Executors
-        .newCachedThreadPool(new java.util.concurrent.ThreadFactory {
-          private val counter = new java.util.concurrent.atomic.AtomicInteger(0)
-          def newThread(r: Runnable): Thread = {
-            val t = new Thread(r, s"kafka-blocking-$topicName-${counter.getAndIncrement()}")
-            t.setDaemon(true)
-            t
-          }
-        })
-    )
+    .Executors
+    .newCachedThreadPool(new java.util.concurrent.ThreadFactory {
+      private val counter = new java.util.concurrent.atomic.AtomicInteger(0)
+      def newThread(r: Runnable): Thread = {
+        val t = new Thread(r, s"kafka-blocking-$topicName-${counter.getAndIncrement()}")
+        t.setDaemon(true)
+        t
+      }
+    })
+  private val blockingEc = scala.concurrent.ExecutionContext.fromExecutor(blockingExecutor)
 
   @volatile private var kafkaHealthy: Boolean = true
 
@@ -439,6 +435,8 @@ class KafkaSink(
     kafkaProducer.close()
     executorService.shutdown()
     executorService.awaitTermination(10000, MILLISECONDS)
+    blockingExecutor.shutdown()
+    blockingExecutor.awaitTermination(10000, MILLISECONDS)
     ()
   }
 }
