@@ -445,6 +445,9 @@ class KafkaSink(
     executorService.shutdown()
     executorService.awaitTermination(10000, MILLISECONDS)
 
+    // Now safe to stop SQS publisher (it uses the shared executor for scheduling)
+    maybeSqs.foreach(_.stop())
+
     // Finally shut down the blocking executor
     blockingExecutor.shutdown()
     blockingExecutor.awaitTermination(10000, MILLISECONDS)
