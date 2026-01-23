@@ -90,7 +90,7 @@ class KafkaSink(
         })
     )
 
-  @volatile private var kafkaHealthy: Boolean = false
+  @volatile private var kafkaHealthy: Boolean = true
 
   override def isHealthy: Boolean = kafkaHealthy
 
