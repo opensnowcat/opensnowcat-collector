@@ -441,14 +441,18 @@ class KafkaSink(
     kafkaProducer.flush()
     kafkaProducer.close()
 
-    // Now stop SQS publisher so any failover sends during flush have already completed
-    maybeSqs.foreach { sqs =>
-      log.info(s"Stopping SQS publisher for topic $topicName")
-      sqs.stop()
-    }
-    // Finally shut down thread pools
+    // Flush any buffered events to Kafka
+    EventStorage.flush()
+
+    // Then stop and drain the executor to ensure all async Kafka sends have completed
     executorService.shutdown()
     executorService.awaitTermination(10000, MILLISECONDS)
+
+    // Now it is safe to flush and close Kafka resources
+    kafkaProducer.flush()
+    kafkaProducer.close()
+
+    // Finally shut down the blocking executor
     blockingExecutor.shutdown()
     blockingExecutor.awaitTermination(10000, MILLISECONDS)
     ()
