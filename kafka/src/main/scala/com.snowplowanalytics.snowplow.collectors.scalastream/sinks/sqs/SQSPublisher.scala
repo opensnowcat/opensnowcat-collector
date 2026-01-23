@@ -174,7 +174,7 @@ final class SQSPublisher(
       // SQS has a hard 1 MiB limit per message (including body and attributes).
       // We check the size of the Base64-encoded payload before sending.
       val MaxSqsMessageBytes = 1024 * 1024 // 1 MiB = 1,048,576 bytes
-      
+
       batch
         .grouped(MaxSqsBatchSize)
         .flatMap { chunk =>
@@ -191,17 +191,16 @@ final class SQSPublisher(
                 None
               } else {
                 val entry =
-                  new SendMessageBatchRequestEntry(UUID.randomUUID().toString, encoded)
-                    .withMessageAttributes(
-                      Map(
-                        "kinesisKey" ->
-                          new MessageAttributeValue().withDataType("String").withStringValue(event.key)
-                      ).asJava
-                    )
+                  new SendMessageBatchRequestEntry(UUID.randomUUID().toString, encoded).withMessageAttributes(
+                    Map(
+                      "kinesisKey" ->
+                        new MessageAttributeValue().withDataType("String").withStringValue(event.key)
+                    ).asJava
+                  )
                 Some((event, entry))
               }
             }
-          
+
           if (entries.isEmpty) {
             List.empty
           } else {

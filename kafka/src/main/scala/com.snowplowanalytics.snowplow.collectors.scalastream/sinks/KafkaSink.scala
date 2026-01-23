@@ -439,12 +439,12 @@ class KafkaSink(
       log.info(s"Stopping SQS publisher for topic $topicName")
       sqs.stop()
     }
-    
+
     // Then flush and close Kafka resources
     EventStorage.flush()
     kafkaProducer.flush()
     kafkaProducer.close()
-    
+
     // Finally shut down thread pools
     executorService.shutdown()
     executorService.awaitTermination(10000, MILLISECONDS)
