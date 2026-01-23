@@ -497,7 +497,8 @@ object KafkaSink {
       maybeSqs,
       enableHealthCheck
     )
-    ks.checkKafkaHealth()
+    // Don't check health at startup - we start healthy
+    // Health check will run automatically when Kafka is marked unhealthy
     ks.EventStorage.scheduleFlush()
     ks
   }
