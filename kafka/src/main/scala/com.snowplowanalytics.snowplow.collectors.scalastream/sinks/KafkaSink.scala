@@ -431,9 +431,18 @@ class KafkaSink(
   }
 
   override def shutdown(): Unit = {
+    // Stop SQS publisher first to flush its buffers
+    maybeSqs.foreach { sqs =>
+      log.info(s"Stopping SQS publisher for topic $topicName")
+      sqs.stop()
+    }
+    
+    // Then flush and close Kafka resources
     EventStorage.flush()
     kafkaProducer.flush()
     kafkaProducer.close()
+    
+    // Finally shut down thread pools
     executorService.shutdown()
     executorService.awaitTermination(10000, MILLISECONDS)
     blockingExecutor.shutdown()
