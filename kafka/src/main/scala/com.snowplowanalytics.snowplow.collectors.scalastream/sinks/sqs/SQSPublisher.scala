@@ -178,22 +178,18 @@ final class SQSPublisher(
 
   private def writeBatchToSqs(batch: List[EventBuffer.Event]): Future[List[(EventBuffer.Event, BatchResultErrorInfo)]] =
     Future {
-      // SQS has a hard 1 MiB limit per message (including body and attributes).
-      // We check the size of the Base64-encoded payload before sending.
-      val MaxSqsMessageBytes = 1024 * 1024 // 1 MiB = 1,048,576 bytes
-
       batch
         .grouped(MaxSqsBatchSize)
         .flatMap { chunk =>
           val entries: List[(EventBuffer.Event, SendMessageBatchRequestEntry)] =
             chunk.flatMap { event =>
               val encoded = java.util.Base64.getEncoder.encodeToString(event.payload)
-              // Base64 output is ASCII, so the number of bytes equals encoded.length
-              val messageSizeBytes = encoded.length
+              // Calculate total message size including Base64 payload, kinesisKey attribute, and overhead
+              val messageSizeBytes = encoded.length + event.key.length + MessageAttributeOverhead
               if (messageSizeBytes > MaxSqsMessageBytes) {
                 log.error(
-                  s"Dropping event for SQS backup queue $queueLabel because its encoded size " +
-                    s"$messageSizeBytes bytes exceeds the SQS limit of $MaxSqsMessageBytes bytes"
+                  s"Dropping event for SQS backup queue $queueLabel because its total message size " +
+                    s"(~$messageSizeBytes bytes including attributes) exceeds the SQS limit of $MaxSqsMessageBytes bytes"
                 )
                 None
               } else {
@@ -271,7 +267,11 @@ final class SQSPublisher(
 
 object SQSPublisher {
   private val MaxSqsBatchSize = 10
-  private val log             = org.slf4j.LoggerFactory.getLogger(classOf[SQSPublisher])
+  // SQS has a hard 1 MiB limit per message (including body and attributes)
+  private val MaxSqsMessageBytes = 1024 * 1024 // 1 MiB = 1,048,576 bytes
+  // Approximate overhead for message attributes (attribute name + value + metadata)
+  private val MessageAttributeOverhead = 100 // bytes
+  private val log                      = org.slf4j.LoggerFactory.getLogger(classOf[SQSPublisher])
 
   final case class BatchResultErrorInfo(code: String, message: String)
 

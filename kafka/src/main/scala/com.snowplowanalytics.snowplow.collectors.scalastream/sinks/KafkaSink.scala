@@ -437,20 +437,13 @@ class KafkaSink(
     // First flush any buffered events so they can be sent to Kafka or SQS as needed
     EventStorage.flush()
 
-    // Then flush and close Kafka resources
+    // Then flush and close Kafka producer
     kafkaProducer.flush()
     kafkaProducer.close()
 
-    // Flush any buffered events to Kafka
-    EventStorage.flush()
-
-    // Then stop and drain the executor to ensure all async Kafka sends have completed
+    // Stop and drain the shared executor to ensure all async sends complete
     executorService.shutdown()
     executorService.awaitTermination(10000, MILLISECONDS)
-
-    // Now it is safe to flush and close Kafka resources
-    kafkaProducer.flush()
-    kafkaProducer.close()
 
     // Finally shut down the blocking executor
     blockingExecutor.shutdown()
