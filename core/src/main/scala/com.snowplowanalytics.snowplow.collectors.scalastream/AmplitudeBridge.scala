@@ -203,10 +203,15 @@ object AmplitudeBridge {
       Json.fromJsonObject(jsonObject)
     }
 
+    // Extract tracker version from Amplitude library field (required)
+    val trackerVersion = eventData.hcursor.get[String]("library").toOption.getOrElse("amplitude-unknown")
+
     val initialData = JsonObject(
       "aid" -> Json.fromString("amplitude_bridge"),
       // self-describing event
       "e" -> Json.fromString("ue"),
+      // tracker version (required)
+      "tv" -> Json.fromString(trackerVersion),
       // platform
       "p" -> Json.fromString("web"),
       // base64-encoded event
@@ -220,7 +225,7 @@ object AmplitudeBridge {
     // Add optional fields
     val userId          = "uid"  -> event.userId
     val domainUserId    = "duid" -> event.deviceId
-    val deviceTimestamp = "dtm"  -> event.time.map(t => Json.fromLong(t))
+    val deviceTimestamp = "dtm"  -> event.time.map(t => Json.fromString(t.toString))
 
     // Merge optional entries
     val optionalEntries = List(userId, domainUserId, deviceTimestamp)
