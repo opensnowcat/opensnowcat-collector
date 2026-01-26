@@ -55,13 +55,15 @@ trait Service {
     doNotTrack: Boolean,
     contentType: Option[ContentType] = None,
     spAnonymous: Option[String] = None,
-    analyticsJsEvent: Option[AnalyticsJsBridge.Event] = None
+    analyticsJsEvent: Option[AnalyticsJsBridge.Event] = None,
+    amplitudeEvent: Option[AmplitudeBridge.AmplitudeEvent] = None
   ): HttpResponse
   def cookieName: Option[String]
   def doNotTrackCookie: Option[DntCookieMatcher]
   def determinePath(vendor: String, version: String): String
   def enableDefaultRedirect: Boolean
   def enableAnalyticsJsBridge: Boolean
+  def enableAmplitudeBridge: Boolean
   def sinksHealthy: Boolean
 }
 
@@ -87,6 +89,7 @@ class CollectorService(
   override val doNotTrackCookie        = config.doNotTrackHttpCookie
   override val enableDefaultRedirect   = config.enableDefaultRedirect
   override val enableAnalyticsJsBridge = config.experimental.enableAnalyticsJsBridge
+  override val enableAmplitudeBridge   = config.experimental.enableAmplitudeBridge
   override def sinksHealthy            = sinks.good.isHealthy && sinks.bad.isHealthy
 
   private val spAnonymousNuid = "00000000-0000-0000-0000-000000000000"
@@ -113,7 +116,8 @@ class CollectorService(
     doNotTrack: Boolean,
     contentType: Option[ContentType] = None,
     spAnonymous: Option[String],
-    analyticsJsEvent: Option[AnalyticsJsBridge.Event] = None
+    analyticsJsEvent: Option[AnalyticsJsBridge.Event] = None,
+    amplitudeEvent: Option[AmplitudeBridge.AmplitudeEvent] = None
   ): HttpResponse = {
     val (ipAddress, partitionKey) = ipAndPartitionKey(ip, config.streams.useIpAddressAsPartitionKey)
 
@@ -145,7 +149,8 @@ class CollectorService(
             nuid,
             ct,
             spAnonymous,
-            analyticsJsEvent
+            analyticsJsEvent,
+            amplitudeEvent
           )
         // we don't store events in case we're bouncing
         if (!bounce && !doNotTrack) sinkEvent(event, partitionKey)
@@ -167,7 +172,8 @@ class CollectorService(
           pixelExpected = pixelExpected,
           bounce = bounce,
           config.redirectMacro,
-          analyticsJsEvent
+          analyticsJsEvent,
+          amplitudeEvent
         )
 
       case Left(error) =>
@@ -249,10 +255,11 @@ class CollectorService(
     networkUserId: String,
     contentType: Option[String],
     spAnonymous: Option[String],
-    analyticsJsEvent: Option[AnalyticsJsBridge.Event] = None
+    analyticsJsEvent: Option[AnalyticsJsBridge.Event] = None,
+    amplitudeEvent: Option[AmplitudeBridge.AmplitudeEvent] = None
   ): CollectorPayload = {
-    val customBody = analyticsJsEvent match {
-      case Some(eventType) =>
+    val customBody = (analyticsJsEvent, amplitudeEvent) match {
+      case (Some(eventType), _) =>
         val jsonBody = io
           .circe
           .parser
@@ -261,7 +268,16 @@ class CollectorService(
         val payload = AnalyticsJsBridge.createSnowplowPayload(jsonBody, eventType, networkUserId)
         Some(payload.noSpaces)
 
-      case None => body
+      case (_, Some(event)) =>
+        val jsonBody = io
+          .circe
+          .parser
+          .parse(body.getOrElse("{}"))
+          .getOrElse(throw new RuntimeException("The request body must be a JSON-encoded Amplitude payload"))
+        val payload = AmplitudeBridge.createSnowplowPayload(jsonBody, event, networkUserId)
+        Some(payload.noSpaces)
+
+      case _ => body
     }
 
     val e = new CollectorPayload(
@@ -310,34 +326,43 @@ class CollectorService(
     pixelExpected: Boolean,
     bounce: Boolean,
     redirectMacroConfig: RedirectMacroConfig,
-    analyticsJsEvent: Option[AnalyticsJsBridge.Event] = None
+    analyticsJsEvent: Option[AnalyticsJsBridge.Event] = None,
+    amplitudeEvent: Option[AmplitudeBridge.AmplitudeEvent] = None
   ): HttpResponse =
     if (redirect) {
       val r = buildRedirectHttpResponse(event, queryParams, redirectMacroConfig)
       r.withHeaders(r.headers ++ headers)
     } else {
-      buildUsualHttpResponse(pixelExpected = pixelExpected, bounce = bounce, analyticsJsEvent = analyticsJsEvent)
-        .withHeaders(headers)
+      buildUsualHttpResponse(
+        pixelExpected = pixelExpected,
+        bounce = bounce,
+        analyticsJsEvent = analyticsJsEvent,
+        amplitudeEvent = amplitudeEvent
+      ).withHeaders(headers)
     }
 
   /** Builds the appropriate http response when not dealing with click redirects. */
   def buildUsualHttpResponse(
     pixelExpected: Boolean,
     bounce: Boolean,
-    analyticsJsEvent: Option[AnalyticsJsBridge.Event] = None
+    analyticsJsEvent: Option[AnalyticsJsBridge.Event] = None,
+    amplitudeEvent: Option[AmplitudeBridge.AmplitudeEvent] = None
   ): HttpResponse =
-    (pixelExpected, bounce, analyticsJsEvent) match {
-      case (true, true, _) => HttpResponse(StatusCodes.Found)
-      case (true, false, _) =>
+    (pixelExpected, bounce, analyticsJsEvent, amplitudeEvent) match {
+      case (true, true, _, _) => HttpResponse(StatusCodes.Found)
+      case (true, false, _, _) =>
         HttpResponse(entity =
           HttpEntity(contentType = ContentType(MediaTypes.`image/gif`), bytes = CollectorService.pixel)
         )
-      // See https://github.com/snowplow/snowplow-javascript-tracker/issues/482
-      case (_, _, None) =>
-        HttpResponse(entity = "ok")
       // analytics.js compatible response
-      case (_, _, Some(_)) =>
+      case (_, _, Some(_), _) =>
         HttpResponse(entity = AnalyticsJsBridge.jsonResponse.noSpaces)
+      // amplitude compatible response
+      case (_, _, _, Some(_)) =>
+        HttpResponse(entity = AmplitudeBridge.jsonResponse.noSpaces)
+      // See https://github.com/snowplow/snowplow-javascript-tracker/issues/482
+      case _ =>
+        HttpResponse(entity = "ok")
     }
 
   /** Builds the appropriate http response when dealing with click redirects. */

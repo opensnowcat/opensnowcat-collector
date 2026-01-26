@@ -18,7 +18,7 @@ import java.net.InetAddress
 
 import org.apache.pekko.http.scaladsl.model._
 import org.apache.pekko.http.scaladsl.model.headers._
-import com.snowplowanalytics.snowplow.collectors.scalastream.fixtures.AnalyticsJsFixture
+import com.snowplowanalytics.snowplow.collectors.scalastream.fixtures.{AmplitudeFixture, AnalyticsJsFixture}
 import org.apache.pekko.http.scaladsl.server.Directives._
 import org.apache.pekko.http.scaladsl.testkit.Specs2RouteTest
 
@@ -27,51 +27,57 @@ import com.snowplowanalytics.snowplow.collectors.scalastream.model.DntCookieMatc
 import org.specs2.mutable.Specification
 
 class CollectorRouteSpec extends Specification with Specs2RouteTest {
-  val mkRoute = (withRedirects: Boolean, spAnonymous: Option[String], analyticsJsBridge: Boolean) =>
-    new CollectorRoute {
-      override val collectorService = new Service {
-        def preflightResponse(req: HttpRequest): HttpResponse =
-          HttpResponse(200, entity = "preflight response")
-        def flashCrossDomainPolicy: HttpResponse = HttpResponse(200, entity = "flash cross domain")
-        def rootResponse: HttpResponse           = HttpResponse(200, entity = "200 collector root")
-        def cookie(
-          queryString: Option[String],
-          body: Option[String],
-          path: String,
-          cookie: Option[HttpCookie],
-          userAgent: Option[String],
-          refererUri: Option[String],
-          hostname: String,
-          ip: RemoteAddress,
-          request: HttpRequest,
-          pixelExpected: Boolean,
-          doNotTrack: Boolean,
-          contentType: Option[ContentType] = None,
-          spAnonymous: Option[String] = spAnonymous,
-          analyticsJsEvent: Option[AnalyticsJsBridge.Event] = None
-        ): HttpResponse =
-          if (analyticsJsEvent.isDefined) {
-            HttpResponse(200, entity = AnalyticsJsBridge.jsonResponse.noSpaces)
-          } else {
-            HttpResponse(200, entity = s"cookie")
-          }
+  val mkRoute =
+    (withRedirects: Boolean, spAnonymous: Option[String], analyticsJsBridge: Boolean, amplitudeBridge: Boolean) =>
+      new CollectorRoute {
+        override val collectorService = new Service {
+          def preflightResponse(req: HttpRequest): HttpResponse =
+            HttpResponse(200, entity = "preflight response")
+          def flashCrossDomainPolicy: HttpResponse = HttpResponse(200, entity = "flash cross domain")
+          def rootResponse: HttpResponse           = HttpResponse(200, entity = "200 collector root")
+          def cookie(
+            queryString: Option[String],
+            body: Option[String],
+            path: String,
+            cookie: Option[HttpCookie],
+            userAgent: Option[String],
+            refererUri: Option[String],
+            hostname: String,
+            ip: RemoteAddress,
+            request: HttpRequest,
+            pixelExpected: Boolean,
+            doNotTrack: Boolean,
+            contentType: Option[ContentType] = None,
+            spAnonymous: Option[String] = spAnonymous,
+            analyticsJsEvent: Option[AnalyticsJsBridge.Event] = None,
+            amplitudeEvent: Option[AmplitudeBridge.AmplitudeEvent] = None
+          ): HttpResponse =
+            if (analyticsJsEvent.isDefined) {
+              HttpResponse(200, entity = AnalyticsJsBridge.jsonResponse.noSpaces)
+            } else if (amplitudeEvent.isDefined) {
+              HttpResponse(200, entity = AmplitudeBridge.jsonResponse.noSpaces)
+            } else {
+              HttpResponse(200, entity = s"cookie")
+            }
 
-        def cookieName: Option[String]                             = Some("name")
-        def doNotTrackCookie: Option[DntCookieMatcher]             = None
-        def determinePath(vendor: String, version: String): String = "/p1/p2"
-        def enableDefaultRedirect: Boolean                         = withRedirects
+          def cookieName: Option[String]                             = Some("name")
+          def doNotTrackCookie: Option[DntCookieMatcher]             = None
+          def determinePath(vendor: String, version: String): String = "/p1/p2"
+          def enableDefaultRedirect: Boolean                         = withRedirects
 
-        def enableAnalyticsJsBridge: Boolean = analyticsJsBridge
-        def sinksHealthy: Boolean            = true
+          def enableAnalyticsJsBridge: Boolean = analyticsJsBridge
+          def enableAmplitudeBridge: Boolean   = amplitudeBridge
+          def sinksHealthy: Boolean            = true
+        }
+        override val healthService = new HealthService {
+          def isHealthy: Boolean = true
+        }
       }
-      override val healthService = new HealthService {
-        def isHealthy: Boolean = true
-      }
-    }
-  val route                      = mkRoute(true, None, false)
-  val routeWithoutRedirects      = mkRoute(false, None, false)
-  val routeWithAnonymousTracking = mkRoute(true, Some("*"), false)
-  val routeWithAnalyticsJs       = mkRoute(true, None, true)
+  val route                      = mkRoute(true, None, false, false)
+  val routeWithoutRedirects      = mkRoute(false, None, false, false)
+  val routeWithAnonymousTracking = mkRoute(true, Some("*"), false, false)
+  val routeWithAnalyticsJs       = mkRoute(true, None, true, false)
+  val routeWithAmplitude         = mkRoute(true, None, false, true)
 
   "The collector <> analytics.js bridge route" should {
     def assertResponse(response: String) = {
@@ -134,6 +140,37 @@ class CollectorRouteSpec extends Specification with Specs2RouteTest {
     "reject an unsupported version from analytics.js" in {
       val event = AnalyticsJsFixture.aliasPayload.noSpaces
       Post("/com.segment/v2/p", event) ~> routeWithAnalyticsJs.collectorRoute ~> check {
+        status.isFailure() must beTrue
+      }
+    }
+  }
+
+  "The collector <> amplitude bridge route" should {
+    def assertResponse(response: String) = {
+      val jsonE = io.circe.parser.parse(response)
+      jsonE.isRight shouldEqual true
+      val json     = jsonE.right.get
+      val expected = AmplitudeBridge.jsonResponse
+      json shouldEqual expected
+    }
+
+    "accept an httpapi event" in {
+      val event = AmplitudeFixture.httpapiPayload.noSpaces
+      Post("/com.amplitude/v1/httpapi", event) ~> routeWithAmplitude.collectorRoute ~> check {
+        assertResponse(responseAs[String])
+      }
+    }
+
+    "accept a batch event" in {
+      val event = AmplitudeFixture.httpapiPayload.noSpaces
+      Post("/com.amplitude/v1/batch", event) ~> routeWithAmplitude.collectorRoute ~> check {
+        assertResponse(responseAs[String])
+      }
+    }
+
+    "reject an unsupported version from amplitude" in {
+      val event = AmplitudeFixture.httpapiPayload.noSpaces
+      Post("/com.amplitude/v2/httpapi", event) ~> routeWithAmplitude.collectorRoute ~> check {
         status.isFailure() must beTrue
       }
     }
