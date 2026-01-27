@@ -31,6 +31,7 @@ final class SQSPublisher(
 
   @volatile private var sqsHealthy: Boolean = false
   @volatile private var lastFlushedTime     = 0L
+  @volatile private var stopped: Boolean    = false
 
   private val buffer = new EventBuffer(
     maxSize = sqsConfig.maxBufferSize,
@@ -71,6 +72,9 @@ final class SQSPublisher(
   }
 
   def stop(): Unit = {
+    // Mark as stopped to prevent scheduled tasks from running
+    stopped = true
+
     // Synchronous final flush to prevent data loss
     val finalBatch = buffer.drain()
 
@@ -86,11 +90,11 @@ final class SQSPublisher(
       }
     }
 
+    // Shut down resources we own (ioThreadPool and AWS client)
+    // The executorService is shared with KafkaSink and will be shut down by its owner
     ioThreadPool.shutdown()
-    executorService.shutdown()
-
     ioThreadPool.awaitTermination(10, SECONDS)
-    executorService.awaitTermination(10, SECONDS)
+    client.shutdown()
     ()
   }
 
@@ -113,9 +117,10 @@ final class SQSPublisher(
       override def run(): Unit = flush()
     })
 
-  def isHealthy: Boolean = sqsHealthy && !circuitBreaker.isOpen
+  def isHealthy: Boolean = sqsHealthy && !circuitBreaker.isOpen && !stopped
 
   private def flush(): Unit = {
+    if (stopped) return // Don't flush after stopped
     val eventsToSend = buffer.drain()
     if (eventsToSend.nonEmpty) {
       lastFlushedTime = System.currentTimeMillis()
@@ -124,6 +129,7 @@ final class SQSPublisher(
   }
 
   private def scheduleFlush(interval: Long = bufferConfig.timeLimit): Unit = {
+    if (stopped) return // Don't schedule tasks after stopped
     executorService.schedule(
       new Runnable {
         override def run(): Unit = {
@@ -175,24 +181,41 @@ final class SQSPublisher(
       batch
         .grouped(MaxSqsBatchSize)
         .flatMap { chunk =>
-          val entries = chunk.map { event =>
-            val encoded = java.util.Base64.getEncoder.encodeToString(event.payload)
-            val entry = new SendMessageBatchRequestEntry(UUID.randomUUID().toString, encoded).withMessageAttributes(
-              Map(
-                "kinesisKey" ->
-                  new MessageAttributeValue().withDataType("String").withStringValue(event.key)
-              ).asJava
+          val entries: List[(EventBuffer.Event, SendMessageBatchRequestEntry)] =
+            chunk.flatMap { event =>
+              val encoded = java.util.Base64.getEncoder.encodeToString(event.payload)
+              // Calculate total message size including Base64 payload, kinesisKey attribute, and overhead
+              val messageSizeBytes = encoded.length + event.key.length + MessageAttributeOverhead
+              if (messageSizeBytes > MaxSqsMessageBytes) {
+                log.error(
+                  s"Dropping event for SQS backup queue $queueLabel because its total message size " +
+                    s"(~$messageSizeBytes bytes including attributes) exceeds the SQS limit of $MaxSqsMessageBytes bytes"
+                )
+                None
+              } else {
+                val entry =
+                  new SendMessageBatchRequestEntry(UUID.randomUUID().toString, encoded).withMessageAttributes(
+                    Map(
+                      "kinesisKey" ->
+                        new MessageAttributeValue().withDataType("String").withStringValue(event.key)
+                    ).asJava
+                  )
+                Some((event, entry))
+              }
+            }
+
+          if (entries.isEmpty) {
+            List.empty
+          } else {
+            val result = client.sendMessageBatch(
+              new SendMessageBatchRequest().withQueueUrl(queueUrl).withEntries(entries.map(_._2).asJava)
             )
-            (event, entry)
-          }
-          val result = client.sendMessageBatch(
-            new SendMessageBatchRequest().withQueueUrl(queueUrl).withEntries(entries.map(_._2).asJava)
-          )
-          val failures =
-            result.getFailed.asScala.map(f => (f.getId, BatchResultErrorInfo(f.getCode, f.getMessage))).toMap
-          entries.collect {
-            case (event, entry) if failures.contains(entry.getId) =>
-              (event, failures(entry.getId))
+            val failures =
+              result.getFailed.asScala.map(f => (f.getId, BatchResultErrorInfo(f.getCode, f.getMessage))).toMap
+            entries.collect {
+              case (event, entry) if failures.contains(entry.getId) =>
+                (event, failures(entry.getId))
+            }
           }
         }
         .toList
@@ -218,6 +241,7 @@ final class SQSPublisher(
     }
 
   private def checkSqsHealth(): Unit = {
+    if (stopped) return // Don't schedule health checks after stopped
     executorService.schedule(
       new Runnable {
         override def run(): Unit =
@@ -243,7 +267,11 @@ final class SQSPublisher(
 
 object SQSPublisher {
   private val MaxSqsBatchSize = 10
-  private val log             = org.slf4j.LoggerFactory.getLogger(classOf[SQSPublisher])
+  // SQS has a hard 1 MiB limit per message (including body and attributes)
+  private val MaxSqsMessageBytes = 1024 * 1024 // 1 MiB = 1,048,576 bytes
+  // Approximate overhead for message attributes (attribute name + value + metadata)
+  private val MessageAttributeOverhead = 100 // bytes
+  private val log                      = org.slf4j.LoggerFactory.getLogger(classOf[SQSPublisher])
 
   final case class BatchResultErrorInfo(code: String, message: String)
 

@@ -2,7 +2,10 @@ package com.snowplowanalytics.snowplow.collectors.scalastream.sinks.sqs
 
 import scala.util.Random
 
-/** Retry policy with exponential backoff and jitter.
+/** Retry policy with randomized backoff and jitter.
+  *
+  * Uses randomized delays within configured bounds to prevent thundering herd,
+  * with a floor to ensure backoff doesn't decrease too rapidly between retries.
   *
   * @param minBackoff Minimum backoff delay in milliseconds
   * @param maxBackoff Maximum backoff delay in milliseconds
@@ -24,7 +27,8 @@ private[sinks] class RetryPolicy(
 
   /** Calculate next backoff delay with jitter.
     *
-    * Uses exponential backoff with randomization to prevent thundering herd.
+    * Picks a random delay between minBackoff and maxBackoff, with a floor
+    * of 2/3 of the current backoff to prevent rapid decrease between retries.
     *
     * @param currentBackoff Current backoff delay in milliseconds
     * @return Next backoff delay in milliseconds

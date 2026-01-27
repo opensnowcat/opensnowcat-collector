@@ -72,25 +72,21 @@ class KafkaSink(
 
   // Separate thread pool for blocking Kafka operations to avoid deadlock
   // When all main threads are blocked in latch.await(), we need separate threads for onComplete
-  private val blockingEc = scala
+  private val blockingExecutor = java
+    .util
     .concurrent
-    .ExecutionContext
-    .fromExecutor(
-      java
-        .util
-        .concurrent
-        .Executors
-        .newCachedThreadPool(new java.util.concurrent.ThreadFactory {
-          private val counter = new java.util.concurrent.atomic.AtomicInteger(0)
-          def newThread(r: Runnable): Thread = {
-            val t = new Thread(r, s"kafka-blocking-$topicName-${counter.getAndIncrement()}")
-            t.setDaemon(true)
-            t
-          }
-        })
-    )
+    .Executors
+    .newCachedThreadPool(new java.util.concurrent.ThreadFactory {
+      private val counter = new java.util.concurrent.atomic.AtomicInteger(0)
+      def newThread(r: Runnable): Thread = {
+        val t = new Thread(r, s"kafka-blocking-$topicName-${counter.getAndIncrement()}")
+        t.setDaemon(true)
+        t
+      }
+    })
+  private val blockingEc = scala.concurrent.ExecutionContext.fromExecutor(blockingExecutor)
 
-  @volatile private var kafkaHealthy: Boolean = false
+  @volatile private var kafkaHealthy: Boolean = true
 
   override def isHealthy: Boolean = kafkaHealthy
 
@@ -358,7 +354,10 @@ class KafkaSink(
     ()
   }
 
-  /** Calculate next backoff delay with exponential backoff and jitter.
+  /** Calculate next backoff delay with randomized jitter.
+    *
+    * Picks a random delay between minBackoff and maxBackoff, with a floor
+    * of 2/3 of the previous backoff to prevent rapid decrease between retries.
     *
     * @param lastBackoff The previous backoff time
     * @return Maximum of two-thirds of lastBackoff and a random number between minBackoff and maxBackoff
@@ -435,10 +434,23 @@ class KafkaSink(
   }
 
   override def shutdown(): Unit = {
+    // First flush any buffered events so they can be sent to Kafka or SQS as needed
     EventStorage.flush()
+
+    // Then flush and close Kafka producer
+    kafkaProducer.flush()
     kafkaProducer.close()
+
+    // Stop and drain the shared executor to ensure all async sends complete
     executorService.shutdown()
     executorService.awaitTermination(10000, MILLISECONDS)
+
+    // Now safe to stop SQS publisher (it uses the shared executor for scheduling)
+    maybeSqs.foreach(_.stop())
+
+    // Finally shut down the blocking executor
+    blockingExecutor.shutdown()
+    blockingExecutor.awaitTermination(10000, MILLISECONDS)
     ()
   }
 }
@@ -481,7 +493,8 @@ object KafkaSink {
       maybeSqs,
       enableHealthCheck
     )
-    ks.checkKafkaHealth()
+    // Don't check health at startup - we start healthy
+    // Health check will run automatically when Kafka is marked unhealthy
     ks.EventStorage.scheduleFlush()
     ks
   }
