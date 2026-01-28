@@ -164,26 +164,37 @@ object AmplitudeBridge {
                 // Path for Snowplow event
                 val path = "/com.snowplowanalytics.snowplow/tp2"
 
+                // Get the actual IP address from RemoteAddress
+                val actualIp = ip.toOption.map(_.getHostAddress).getOrElse("unknown")
+
                 // Process each event in the batch
                 eventsJson.foreach { eventJson =>
                   val cursor = eventJson.hcursor
 
+                  // Replace $remote placeholder with actual IP address
+                  val eventWithIp = cursor.get[String]("ip").toOption match {
+                    case Some("$remote") =>
+                      eventJson.hcursor.downField("ip").set(Json.fromString(actualIp)).top.getOrElse(eventJson)
+                    case _ => eventJson
+                  }
+                  val updatedCursor = eventWithIp.hcursor
+
                   // Extract fields from event
-                  val deviceId = cursor.get[String]("device_id").toOption
-                  val userId   = cursor.get[String]("user_id").toOption
-                  val time     = cursor.get[Long]("time").toOption
+                  val deviceId = updatedCursor.get[String]("device_id").toOption
+                  val userId   = updatedCursor.get[String]("user_id").toOption
+                  val time     = updatedCursor.get[Long]("time").toOption
 
                   val amplitudeEvent = AmplitudeEvent(
                     deviceId = deviceId,
                     userId = userId,
                     time = time,
-                    eventData = eventJson
+                    eventData = eventWithIp
                   )
 
                   // Call collector service for each event
                   collectorService.cookie(
                     queryString = queryString,
-                    body = Some(eventJson.noSpaces),
+                    body = Some(eventWithIp.noSpaces),
                     path = path,
                     cookie = cookie,
                     userAgent = userAgent,
@@ -250,7 +261,7 @@ object AmplitudeBridge {
     val trackerVersion = eventData.hcursor.get[String]("library").toOption.getOrElse("amplitude-unknown")
 
     val initialData = JsonObject(
-      "aid" -> Json.fromString("amplitude_bridge"),
+      "aid" -> Json.fromString("amp_bridge"),
       // self-describing event
       "e" -> Json.fromString("ue"),
       // tracker version (required)
