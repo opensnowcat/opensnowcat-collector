@@ -65,6 +65,7 @@ class KafkaSink(
   private val randomGenerator = new java.util.Random()
 
   private val kafkaProducer = createProducer
+  private val adminClient   = createAdminClient
 
   // Separate execution context for non-blocking callbacks
   implicit lazy val ec: ExecutionContextExecutorService =
@@ -396,6 +397,13 @@ class KafkaSink(
     new KafkaProducer[String, Array[Byte]](props)
   }
 
+  private def createAdminClient: AdminClient = {
+    val adminProps = new Properties()
+    adminProps.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaConfig.brokers)
+    adminProps.put(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG, "5000")
+    AdminClient.create(adminProps)
+  }
+
   /** Background health check for Kafka recovery.
     * Checks if Kafka cluster is accessible using Admin API.
     * Runs until Kafka is marked healthy again.
@@ -405,12 +413,6 @@ class KafkaSink(
     val healthRunnable = new Runnable {
       override def run(): Unit = {
         log.info(s"Starting background health check for Kafka cluster at ${kafkaConfig.brokers}")
-
-        // Create admin client for health checks
-        val adminProps = new Properties()
-        adminProps.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaConfig.brokers)
-        adminProps.put(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG, "5000")
-        val adminClient = AdminClient.create(adminProps)
 
         try while (!kafkaHealthy)
           Try {
@@ -425,7 +427,7 @@ class KafkaSink(
             case Failure(err) =>
               log.warn(s"Kafka cluster at ${kafkaConfig.brokers} not accessible: ${err.getMessage}")
               Thread.sleep(kafkaConfig.startupCheckInterval.toMillis)
-          } finally adminClient.close()
+          } finally ()
       }
     }
     executorService.execute(healthRunnable)
@@ -440,6 +442,7 @@ class KafkaSink(
     // Then flush and close Kafka producer
     kafkaProducer.flush()
     kafkaProducer.close()
+    adminClient.close()
 
     // Stop and drain the shared executor to ensure all async sends complete
     executorService.shutdown()

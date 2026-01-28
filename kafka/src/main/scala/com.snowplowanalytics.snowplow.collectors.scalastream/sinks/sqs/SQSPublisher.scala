@@ -68,7 +68,7 @@ final class SQSPublisher(
 
   def start(): Unit = {
     scheduleFlush()
-    checkSqsHealth()
+    scheduleSqsHealthCheck()
   }
 
   def stop(): Unit = {
@@ -164,9 +164,10 @@ final class SQSPublisher(
           }
 
         case Failure(CircuitBreaker.CircuitBreakerOpenException(msg)) =>
-          log.warn(s"Circuit breaker prevented SQS write for queue $queueLabel: $msg")
+          log.warn(s"Circuit breaker open for queue $queueLabel: $msg - will retry batch in ${nextBackoff}ms")
           sqsHealthy = false
-        // Don't retry immediately, circuit breaker will test recovery
+          val circuitOpenBackoff = Math.max(nextBackoff, CircuitBreakerOpenMinBackoffMs)
+          scheduleRetry(batch, circuitOpenBackoff, retriesLeft)
 
         case Failure(err) =>
           log.error(
@@ -175,6 +176,20 @@ final class SQSPublisher(
           handleError(batch, nextBackoff, retriesLeft)
       }
     }
+
+  /** Schedules a retry of the batch after the specified delay in ms.
+    */
+  private def scheduleRetry(batch: List[EventBuffer.Event], delay: Long, retriesLeft: Int): Unit = {
+    val nextBackoff = retryPolicy.nextBackoff(delay)
+    executorService.schedule(
+      new Runnable {
+        override def run(): Unit = sinkBatch(batch, nextBackoff, retriesLeft)
+      },
+      delay,
+      MILLISECONDS
+    )
+    ()
+  }
 
   private def writeBatchToSqs(batch: List[EventBuffer.Event]): Future[List[(EventBuffer.Event, BatchResultErrorInfo)]] =
     Future {
@@ -223,41 +238,44 @@ final class SQSPublisher(
 
   private def handleError(batch: List[EventBuffer.Event], curBackoff: Long, retriesLeft: Int): Unit =
     if (retryPolicy.shouldRetry(retriesLeft)) {
-      val nextBackoff = retryPolicy.nextBackoff(curBackoff)
-      executorService.schedule(
-        new Runnable {
-          override def run(): Unit = sinkBatch(batch, nextBackoff, retriesLeft - 1)
-        },
-        curBackoff,
-        MILLISECONDS
-      )
-      ()
+      log.debug(s"Scheduling retry of ${batch.size} events in ${curBackoff}ms ($retriesLeft retries left)")
+      scheduleRetry(batch, curBackoff, retriesLeft - 1)
     } else {
       log.error(
-        s"Maximum retries (${retryPolicy.maxRetries}) exhausted for SQS backup queue $queueLabel; dropping ${batch.size} events"
+        s"Maximum retries (${retryPolicy.maxRetries}) exhausted for SQS backup queue $queueLabel. " +
+          s"Dropping ${batch.size} events."
       )
       sqsHealthy = false
-      checkSqsHealth()
     }
 
-  private def checkSqsHealth(): Unit = {
+  private def checkSqsHealth(): Unit =
+    try {
+      import com.amazonaws.services.sqs.model.GetQueueAttributesRequest
+      client.getQueueAttributes(new GetQueueAttributesRequest(queueUrl).withAttributeNames("QueueArn"))
+      if (!sqsHealthy) {
+        log.info(s"SQS backup queue $queueLabel reachable")
+      }
+      sqsHealthy = true
+    } catch {
+      case e: Throwable =>
+        if (sqsHealthy) {
+          log.warn(
+            s"SQS backup queue $queueLabel not reachable: ${e.getMessage}; will retry"
+          )
+        }
+        sqsHealthy = false
+    }
+
+  private def scheduleSqsHealthCheck(): Unit = {
     if (stopped) return // Don't schedule health checks after stopped
-    executorService.schedule(
+    executorService.scheduleAtFixedRate(
       new Runnable {
         override def run(): Unit =
-          try {
-            import com.amazonaws.services.sqs.model.GetQueueAttributesRequest
-            client.getQueueAttributes(new GetQueueAttributesRequest(queueUrl).withAttributeNames("QueueArn"))
-            log.info(s"SQS backup queue $queueLabel reachable")
-            sqsHealthy = true
-          } catch {
-            case e: Throwable =>
-              log.warn(
-                s"SQS backup queue $queueLabel not reachable: ${e.getMessage}; will retry"
-              )
-              checkSqsHealth()
+          if (!stopped) {
+            checkSqsHealth()
           }
       },
+      0,
       sqsConfig.startupCheckInterval.toMillis,
       MILLISECONDS
     )
@@ -271,7 +289,10 @@ object SQSPublisher {
   private val MaxSqsMessageBytes = 1024 * 1024 // 1 MiB = 1,048,576 bytes
   // Approximate overhead for message attributes (attribute name + value + metadata)
   private val MessageAttributeOverhead = 100 // bytes
-  private val log                      = org.slf4j.LoggerFactory.getLogger(classOf[SQSPublisher])
+  // Minimum backoff when circuit breaker is open (defaulting to 30 seconds)
+  private val CircuitBreakerOpenMinBackoffMs = 30000L
+
+  private val log = org.slf4j.LoggerFactory.getLogger(classOf[SQSPublisher])
 
   final case class BatchResultErrorInfo(code: String, message: String)
 
