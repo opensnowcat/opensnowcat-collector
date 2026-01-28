@@ -56,16 +56,16 @@ object AmplitudeBridge {
         cookieDomains match {
           case Some(domains) if isOriginAllowed(originHost, domains) =>
             // Origin is in whitelist - echo it back
-            request.headers.collectFirst {
-              case Origin(origins) => `Access-Control-Allow-Origin`(origins.head)
+            request.headers.collectFirst { case Origin(origins) =>
+              `Access-Control-Allow-Origin`(origins.head)
             }
           case Some(_) =>
             // Origin not in whitelist - don't set CORS header (browser will block)
             None
           case None =>
             // No whitelist configured - allow all (like Amplitude)
-            request.headers.collectFirst {
-              case Origin(origins) => `Access-Control-Allow-Origin`(HttpOriginRange.Default(origins))
+            request.headers.collectFirst { case Origin(origins) =>
+              `Access-Control-Allow-Origin`(HttpOriginRange.Default(origins))
             }
         }
       case None =>
@@ -105,34 +105,34 @@ object AmplitudeBridge {
             complete(HttpResponse(StatusCodes.Forbidden, entity = "Origin not allowed"))
           }
         } ~
-        // Handle POST requests
-        post {
-          val corsHeaders = buildCorsHeaders(request)
-          // Check if origin is allowed before processing
-          if (corsHeaders.exists(_.isInstanceOf[`Access-Control-Allow-Origin`])) {
-            extractContentType { ct =>
-              entity(as[String]) { body =>
-                handleAmplitudeRequest(
-                  body,
-                  ct,
-                  queryString,
-                  cookie,
-                  userAgent,
-                  refererUri,
-                  hostname,
-                  ip,
-                  doNotTrack,
-                  request,
-                  spAnonymous,
-                  collectorService,
-                  corsHeaders
-                )
+          // Handle POST requests
+          post {
+            val corsHeaders = buildCorsHeaders(request)
+            // Check if origin is allowed before processing
+            if (corsHeaders.exists(_.isInstanceOf[`Access-Control-Allow-Origin`])) {
+              extractContentType { ct =>
+                entity(as[String]) { body =>
+                  handleAmplitudeRequest(
+                    body,
+                    ct,
+                    queryString,
+                    cookie,
+                    userAgent,
+                    refererUri,
+                    hostname,
+                    ip,
+                    doNotTrack,
+                    request,
+                    spAnonymous,
+                    collectorService,
+                    corsHeaders
+                  )
+                }
               }
+            } else {
+              complete(HttpResponse(StatusCodes.Forbidden, entity = "Origin not allowed"))
             }
-          } else {
-            complete(HttpResponse(StatusCodes.Forbidden, entity = "Origin not allowed"))
           }
-        }
       }
     }
 
@@ -209,15 +209,22 @@ object AmplitudeBridge {
                 complete(response)
 
               case Right(_) =>
-                complete(HttpResponse(StatusCodes.BadRequest, entity = "Events array is empty").withHeaders(corsHeaders))
+                complete(
+                  HttpResponse(StatusCodes.BadRequest, entity = "Events array is empty").withHeaders(corsHeaders)
+                )
               case Left(_) =>
-                complete(HttpResponse(StatusCodes.BadRequest, entity = "Missing or invalid events array").withHeaders(corsHeaders))
+                complete(
+                  HttpResponse(StatusCodes.BadRequest, entity = "Missing or invalid events array")
+                    .withHeaders(corsHeaders)
+                )
             }
           case None =>
             complete(HttpResponse(StatusCodes.BadRequest, entity = "Missing api_key").withHeaders(corsHeaders))
         }
       case Left(error) =>
-        complete(HttpResponse(StatusCodes.BadRequest, entity = s"Invalid JSON: ${error.getMessage}").withHeaders(corsHeaders))
+        complete(
+          HttpResponse(StatusCodes.BadRequest, entity = s"Invalid JSON: ${error.getMessage}").withHeaders(corsHeaders)
+        )
     }
 
   def createSnowplowPayload(eventData: Json, event: AmplitudeEvent, networkUserId: String): Json = {
