@@ -168,10 +168,10 @@ final class SQSPublisher(
           }
 
         case Failure(CircuitBreaker.CircuitBreakerOpenException(msg)) =>
-          log.warn(s"Circuit breaker open for queue $queueLabel: $msg - will retry batch in ${nextBackoff}ms")
           sqsHealthy = false
           val circuitOpenBackoff = Math.max(nextBackoff, CircuitBreakerOpenMinBackoffMs)
-          scheduleRetry(batch, circuitOpenBackoff, retriesLeft)
+          log.warn(s"Circuit breaker open for queue $queueLabel: $msg - will retry batch in ${circuitOpenBackoff}ms")
+          handleError(batch, circuitOpenBackoff, retriesLeft)
 
         case Failure(err) =>
           log.error(
