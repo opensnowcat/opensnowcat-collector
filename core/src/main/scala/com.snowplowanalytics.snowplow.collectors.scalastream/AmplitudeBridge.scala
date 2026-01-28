@@ -5,8 +5,7 @@ import org.apache.pekko.http.scaladsl.model.headers._
 import org.apache.pekko.http.scaladsl.server.Directives._
 import org.apache.pekko.http.scaladsl.server._
 
-import pureconfig.ConfigSource
-import pureconfig.generic.auto._
+import com.snowplowanalytics.snowplow.collectors.scalastream.model.CrossDomainConfig
 
 object AmplitudeBridge {
 
@@ -15,12 +14,7 @@ object AmplitudeBridge {
   val jsonResponse: Json = Json.fromJsonObject(JsonObject("success" -> Json.fromBoolean(true)))
 
   private val Vendor  = "com.amplitude"
-  private val Version = "v1"
-
-  // Load cookie domains directly from config for CORS whitelisting
-  // If not configured, CORS will allow all origins (like Amplitude does)
-  private lazy val cookieDomains: Option[List[String]] =
-    ConfigSource.default.at("collector.cookie.domains").load[List[String]].toOption
+  private val Version = "2"
 
   case class AmplitudeEvent(
     deviceId: Option[String],
@@ -35,10 +29,19 @@ object AmplitudeBridge {
   )
 
   /** Check if a host matches one of the allowed domains.
-    * Uses the same matching logic as Snowplow's cookie domain matching.
+    * Supports wildcard matching: *.example.com matches sub.example.com
+    * Also matches exact domain: example.com matches example.com
     */
   private def isOriginAllowed(originHost: String, domains: List[String]): Boolean =
-    domains.exists(domain => originHost == domain || originHost.endsWith("." + domain))
+    domains.exists { domain =>
+      if (domain == "*") true
+      else if (domain.startsWith("*.")) {
+        val suffix = domain.substring(1) // Remove the "*", keep ".example.com"
+        originHost.endsWith(suffix) || originHost == domain.substring(2)
+      } else {
+        originHost == domain || originHost.endsWith("." + domain)
+      }
+    }
 
   /** Extract the host from an Origin header */
   private def extractOriginHost(request: HttpRequest): Option[String] =
@@ -46,27 +49,30 @@ object AmplitudeBridge {
       case Origin(origins) if origins.nonEmpty => origins.head.host.host.address()
     }
 
-  /** Build CORS headers based on the request origin and configured domains.
-    * If cookie.domains is configured, only allow origins that match.
-    * If not configured, allow all origins (like Amplitude does).
+  /** Build CORS headers based on crossDomain config.
+    * - If crossDomain.enabled = false, allow all origins (like Amplitude)
+    * - If crossDomain.enabled = true AND domains = ["*"], allow all origins
+    * - If crossDomain.enabled = true AND specific domains listed, whitelist those
     */
-  private def buildCorsHeaders(request: HttpRequest): List[HttpHeader] = {
+  private def buildCorsHeaders(request: HttpRequest, crossDomainConfig: CrossDomainConfig): List[HttpHeader] = {
     val originHeader = extractOriginHost(request) match {
       case Some(originHost) =>
-        cookieDomains match {
-          case Some(domains) if isOriginAllowed(originHost, domains) =>
+        if (crossDomainConfig.enabled && !crossDomainConfig.domains.contains("*")) {
+          // Whitelisting enabled with specific domains
+          if (isOriginAllowed(originHost, crossDomainConfig.domains)) {
             // Origin is in whitelist - echo it back
             request.headers.collectFirst { case Origin(origins) =>
               `Access-Control-Allow-Origin`(origins.head)
             }
-          case Some(_) =>
+          } else {
             // Origin not in whitelist - don't set CORS header (browser will block)
             None
-          case None =>
-            // No whitelist configured - allow all (like Amplitude)
-            request.headers.collectFirst { case Origin(origins) =>
-              `Access-Control-Allow-Origin`(HttpOriginRange.Default(origins))
-            }
+          }
+        } else {
+          // No whitelisting (disabled or domains = ["*"]) - allow all (like Amplitude)
+          request.headers.collectFirst { case Origin(origins) =>
+            `Access-Control-Allow-Origin`(HttpOriginRange.Default(origins))
+          }
         }
       case None =>
         // No Origin header - allow all
@@ -92,12 +98,13 @@ object AmplitudeBridge {
     spAnonymous: Option[String],
     extractContentType: Directive1[ContentType],
     collectorService: Service
-  ): Route =
+  ): Route = {
+    val crossDomainConfig = collectorService.crossDomainConfig
     pathPrefix(Vendor / Version) {
       path("httpapi" | "batch") {
         // Handle CORS preflight
         options {
-          val corsHeaders = buildCorsHeaders(request)
+          val corsHeaders = buildCorsHeaders(request, crossDomainConfig)
           if (corsHeaders.exists(_.isInstanceOf[`Access-Control-Allow-Origin`])) {
             complete(HttpResponse(StatusCodes.OK).withHeaders(corsHeaders))
           } else {
@@ -107,7 +114,7 @@ object AmplitudeBridge {
         } ~
           // Handle POST requests
           post {
-            val corsHeaders = buildCorsHeaders(request)
+            val corsHeaders = buildCorsHeaders(request, crossDomainConfig)
             // Check if origin is allowed before processing
             if (corsHeaders.exists(_.isInstanceOf[`Access-Control-Allow-Origin`])) {
               extractContentType { ct =>
@@ -135,6 +142,7 @@ object AmplitudeBridge {
           }
       }
     }
+  }
 
   private def handleAmplitudeRequest(
     body: String,

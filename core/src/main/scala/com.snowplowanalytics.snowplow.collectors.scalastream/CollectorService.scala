@@ -65,6 +65,7 @@ trait Service {
   def enableAnalyticsJsBridge: Boolean
   def enableAmplitudeBridge: Boolean
   def sinksHealthy: Boolean
+  def crossDomainConfig: CrossDomainConfig
 }
 
 object CollectorService {
@@ -90,6 +91,7 @@ class CollectorService(
   override val enableDefaultRedirect   = config.enableDefaultRedirect
   override val enableAnalyticsJsBridge = config.experimental.enableAnalyticsJsBridge
   override val enableAmplitudeBridge   = config.experimental.enableAmplitudeBridge
+  override val crossDomainConfig       = config.crossDomain
   override def sinksHealthy            = sinks.good.isHealthy && sinks.bad.isHealthy
 
   private val spAnonymousNuid = "00000000-0000-0000-0000-000000000000"

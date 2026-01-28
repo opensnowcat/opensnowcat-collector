@@ -68,6 +68,8 @@ class CollectorRouteSpec extends Specification with Specs2RouteTest {
           def enableAnalyticsJsBridge: Boolean = analyticsJsBridge
           def enableAmplitudeBridge: Boolean   = amplitudeBridge
           def sinksHealthy: Boolean            = true
+          def crossDomainConfig: model.CrossDomainConfig =
+            model.CrossDomainConfig(enabled = false, domains = List("*"), secure = false)
         }
         override val healthService = new HealthService {
           def isHealthy: Boolean = true
@@ -156,14 +158,14 @@ class CollectorRouteSpec extends Specification with Specs2RouteTest {
 
     "accept an httpapi event" in {
       val event = AmplitudeFixture.httpapiPayload.noSpaces
-      Post("/com.amplitude/v1/httpapi", event) ~> routeWithAmplitude.collectorRoute ~> check {
+      Post("/com.amplitude/2/httpapi", event) ~> routeWithAmplitude.collectorRoute ~> check {
         assertResponse(responseAs[String])
       }
     }
 
     "accept a batch event" in {
       val event = AmplitudeFixture.httpapiPayload.noSpaces
-      Post("/com.amplitude/v1/batch", event) ~> routeWithAmplitude.collectorRoute ~> check {
+      Post("/com.amplitude/2/batch", event) ~> routeWithAmplitude.collectorRoute ~> check {
         assertResponse(responseAs[String])
       }
     }
