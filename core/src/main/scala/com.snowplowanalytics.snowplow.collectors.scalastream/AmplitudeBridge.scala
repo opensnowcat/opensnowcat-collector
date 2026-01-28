@@ -1,21 +1,26 @@
 package com.snowplowanalytics.snowplow.collectors.scalastream
 
 import org.apache.pekko.http.scaladsl.model._
-import org.apache.pekko.http.scaladsl.model.headers.HttpCookie
+import org.apache.pekko.http.scaladsl.model.headers._
 import org.apache.pekko.http.scaladsl.server.Directives._
 import org.apache.pekko.http.scaladsl.server._
+
+import pureconfig.ConfigSource
+import pureconfig.generic.auto._
 
 object AmplitudeBridge {
 
   import io.circe._
 
-  import java.nio.charset.StandardCharsets
-  import java.util.Base64
-
   val jsonResponse: Json = Json.fromJsonObject(JsonObject("success" -> Json.fromBoolean(true)))
 
   private val Vendor  = "com.amplitude"
   private val Version = "v1"
+
+  // Load cookie domains directly from config for CORS whitelisting
+  // If not configured, CORS will allow all origins (like Amplitude does)
+  private lazy val cookieDomains: Option[List[String]] =
+    ConfigSource.default.at("collector.cookie.domains").load[List[String]].toOption
 
   case class AmplitudeEvent(
     deviceId: Option[String],
@@ -28,6 +33,52 @@ object AmplitudeBridge {
     apiKey: String,
     events: List[AmplitudeEvent]
   )
+
+  /** Check if a host matches one of the allowed domains.
+    * Uses the same matching logic as Snowplow's cookie domain matching.
+    */
+  private def isOriginAllowed(originHost: String, domains: List[String]): Boolean =
+    domains.exists(domain => originHost == domain || originHost.endsWith("." + domain))
+
+  /** Extract the host from an Origin header */
+  private def extractOriginHost(request: HttpRequest): Option[String] =
+    request.headers.collectFirst {
+      case Origin(origins) if origins.nonEmpty => origins.head.host.host.address()
+    }
+
+  /** Build CORS headers based on the request origin and configured domains.
+    * If cookie.domains is configured, only allow origins that match.
+    * If not configured, allow all origins (like Amplitude does).
+    */
+  private def buildCorsHeaders(request: HttpRequest): List[HttpHeader] = {
+    val originHeader = extractOriginHost(request) match {
+      case Some(originHost) =>
+        cookieDomains match {
+          case Some(domains) if isOriginAllowed(originHost, domains) =>
+            // Origin is in whitelist - echo it back
+            request.headers.collectFirst {
+              case Origin(origins) => `Access-Control-Allow-Origin`(origins.head)
+            }
+          case Some(_) =>
+            // Origin not in whitelist - don't set CORS header (browser will block)
+            None
+          case None =>
+            // No whitelist configured - allow all (like Amplitude)
+            request.headers.collectFirst {
+              case Origin(origins) => `Access-Control-Allow-Origin`(HttpOriginRange.Default(origins))
+            }
+        }
+      case None =>
+        // No Origin header - allow all
+        Some(`Access-Control-Allow-Origin`(HttpOriginRange.`*`))
+    }
+
+    originHeader.toList ++ List(
+      `Access-Control-Allow-Methods`(HttpMethods.POST, HttpMethods.OPTIONS),
+      `Access-Control-Allow-Headers`("Content-Type"),
+      `Access-Control-Max-Age`(3600)
+    )
+  }
 
   def routes(
     queryString: Option[String],
@@ -44,24 +95,42 @@ object AmplitudeBridge {
   ): Route =
     pathPrefix(Vendor / Version) {
       path("httpapi" | "batch") {
+        // Handle CORS preflight
+        options {
+          val corsHeaders = buildCorsHeaders(request)
+          if (corsHeaders.exists(_.isInstanceOf[`Access-Control-Allow-Origin`])) {
+            complete(HttpResponse(StatusCodes.OK).withHeaders(corsHeaders))
+          } else {
+            // Origin not allowed - return 403
+            complete(HttpResponse(StatusCodes.Forbidden, entity = "Origin not allowed"))
+          }
+        } ~
+        // Handle POST requests
         post {
-          extractContentType { ct =>
-            entity(as[String]) { body =>
-              handleAmplitudeRequest(
-                body,
-                ct,
-                queryString,
-                cookie,
-                userAgent,
-                refererUri,
-                hostname,
-                ip,
-                doNotTrack,
-                request,
-                spAnonymous,
-                collectorService
-              )
+          val corsHeaders = buildCorsHeaders(request)
+          // Check if origin is allowed before processing
+          if (corsHeaders.exists(_.isInstanceOf[`Access-Control-Allow-Origin`])) {
+            extractContentType { ct =>
+              entity(as[String]) { body =>
+                handleAmplitudeRequest(
+                  body,
+                  ct,
+                  queryString,
+                  cookie,
+                  userAgent,
+                  refererUri,
+                  hostname,
+                  ip,
+                  doNotTrack,
+                  request,
+                  spAnonymous,
+                  collectorService,
+                  corsHeaders
+                )
+              }
             }
+          } else {
+            complete(HttpResponse(StatusCodes.Forbidden, entity = "Origin not allowed"))
           }
         }
       }
@@ -79,7 +148,8 @@ object AmplitudeBridge {
     doNotTrack: Boolean,
     request: HttpRequest,
     spAnonymous: Option[String],
-    collectorService: Service
+    collectorService: Service,
+    corsHeaders: List[HttpHeader]
   ): Route =
     // Parse the JSON body
     io.circe.parser.parse(body) match {
@@ -87,101 +157,67 @@ object AmplitudeBridge {
         // Extract api_key
         val apiKeyOpt = parsedBody.hcursor.get[String]("api_key").toOption
         apiKeyOpt match {
-          case Some(apiKey) =>
+          case Some(_) =>
             // Extract events array
             parsedBody.hcursor.get[List[Json]]("events") match {
               case Right(eventsJson) if eventsJson.nonEmpty =>
-                // Parse Amplitude cookies
-                val ampCookieName     = s"AMP_$apiKey"
-                val ampMktgCookieName = s"AMP_MKTG_$apiKey"
+                // Path for Snowplow event
+                val path = "/com.snowplowanalytics.snowplow/tp2"
 
-                optionalCookie(ampCookieName) { ampCookie =>
-                  optionalCookie(ampMktgCookieName) { _ =>
-                    // Decode device_id from cookie if present
-                    val cookieDeviceId = ampCookie.flatMap { c =>
-                      try {
-                        val decoded = new String(Base64.getDecoder.decode(c.value), StandardCharsets.UTF_8)
-                        io.circe.parser.parse(decoded).toOption.flatMap(_.hcursor.get[String]("deviceId").toOption)
-                      } catch {
-                        case _: Exception => None
-                      }
-                    }
+                // Process each event in the batch
+                eventsJson.foreach { eventJson =>
+                  val cursor = eventJson.hcursor
 
-                    // Path for Snowplow event
-                    val path = "/com.snowplowanalytics.snowplow/tp2"
+                  // Extract fields from event
+                  val deviceId = cursor.get[String]("device_id").toOption
+                  val userId   = cursor.get[String]("user_id").toOption
+                  val time     = cursor.get[Long]("time").toOption
 
-                    // Process each event in the batch
-                    eventsJson.foreach { eventJson =>
-                      val cursor = eventJson.hcursor
+                  val amplitudeEvent = AmplitudeEvent(
+                    deviceId = deviceId,
+                    userId = userId,
+                    time = time,
+                    eventData = eventJson
+                  )
 
-                      // Extract fields from event
-                      val deviceId = cursor.get[String]("device_id").toOption.orElse(cookieDeviceId)
-                      val userId   = cursor.get[String]("user_id").toOption
-                      val time     = cursor.get[Long]("time").toOption
-
-                      val amplitudeEvent = AmplitudeEvent(
-                        deviceId = deviceId,
-                        userId = userId,
-                        time = time,
-                        eventData = eventJson
-                      )
-
-                      // Call collector service for each event
-                      collectorService.cookie(
-                        queryString = queryString,
-                        body = Some(eventJson.noSpaces),
-                        path = path,
-                        cookie = cookie,
-                        userAgent = userAgent,
-                        refererUri = refererUri,
-                        hostname = hostname,
-                        ip = ip,
-                        request = request,
-                        pixelExpected = false,
-                        doNotTrack = doNotTrack,
-                        contentType = Some(ct),
-                        spAnonymous = spAnonymous,
-                        amplitudeEvent = Some(amplitudeEvent)
-                      )
-                    }
-
-                    // Return success response
-                    // Set Amplitude cookies in response
-                    val responseCookies = List(
-                      cookieDeviceId
-                        .orElse(eventsJson.headOption.flatMap(_.hcursor.get[String]("device_id").toOption))
-                        .map { did =>
-                          val cookieData = Json.obj("deviceId" -> Json.fromString(did))
-                          val encoded =
-                            Base64.getEncoder.encodeToString(cookieData.noSpaces.getBytes(StandardCharsets.UTF_8))
-                          HttpCookie(ampCookieName, encoded, path = Some("/"), maxAge = Some(31536000))
-                        }
-                    ).flatten
-
-                    val response = HttpResponse(
-                      StatusCodes.OK,
-                      entity = HttpEntity(ContentTypes.`application/json`, jsonResponse.noSpaces)
-                    )
-
-                    val responseWithCookies = if (responseCookies.nonEmpty) {
-                      response.withHeaders(responseCookies.map(c => headers.`Set-Cookie`(c)))
-                    } else {
-                      response
-                    }
-
-                    complete(responseWithCookies)
-                  }
+                  // Call collector service for each event
+                  collectorService.cookie(
+                    queryString = queryString,
+                    body = Some(eventJson.noSpaces),
+                    path = path,
+                    cookie = cookie,
+                    userAgent = userAgent,
+                    refererUri = refererUri,
+                    hostname = hostname,
+                    ip = ip,
+                    request = request,
+                    pixelExpected = false,
+                    doNotTrack = doNotTrack,
+                    contentType = Some(ct),
+                    spAnonymous = spAnonymous,
+                    amplitudeEvent = Some(amplitudeEvent)
+                  )
                 }
+
+                // Return success response with CORS headers
+                // Note: We don't set Amplitude cookies - the client SDK handles that
+                val response = HttpResponse(
+                  StatusCodes.OK,
+                  entity = HttpEntity(ContentTypes.`application/json`, jsonResponse.noSpaces)
+                ).withHeaders(corsHeaders)
+
+                complete(response)
+
               case Right(_) =>
-                complete(HttpResponse(StatusCodes.BadRequest, entity = "Events array is empty"))
+                complete(HttpResponse(StatusCodes.BadRequest, entity = "Events array is empty").withHeaders(corsHeaders))
               case Left(_) =>
-                complete(HttpResponse(StatusCodes.BadRequest, entity = "Missing or invalid events array"))
+                complete(HttpResponse(StatusCodes.BadRequest, entity = "Missing or invalid events array").withHeaders(corsHeaders))
             }
           case None =>
-            complete(HttpResponse(StatusCodes.BadRequest, entity = "Missing api_key"))
+            complete(HttpResponse(StatusCodes.BadRequest, entity = "Missing api_key").withHeaders(corsHeaders))
         }
       case Left(error) =>
-        complete(HttpResponse(StatusCodes.BadRequest, entity = s"Invalid JSON: ${error.getMessage}"))
+        complete(HttpResponse(StatusCodes.BadRequest, entity = s"Invalid JSON: ${error.getMessage}").withHeaders(corsHeaders))
     }
 
   def createSnowplowPayload(eventData: Json, event: AmplitudeEvent, networkUserId: String): Json = {
