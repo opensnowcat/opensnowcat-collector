@@ -65,6 +65,7 @@ class KafkaSink(
   private val randomGenerator = new java.util.Random()
 
   private val kafkaProducer = createProducer
+  private val adminClient   = createAdminClient
 
   // Separate execution context for non-blocking callbacks
   implicit lazy val ec: ExecutionContextExecutorService =
@@ -87,6 +88,8 @@ class KafkaSink(
   private val blockingEc = scala.concurrent.ExecutionContext.fromExecutor(blockingExecutor)
 
   @volatile private var kafkaHealthy: Boolean = true
+  @volatile private var stopped: Boolean      = false
+  private val healthCheckLatch                = new java.util.concurrent.CountDownLatch(1)
 
   override def isHealthy: Boolean = kafkaHealthy
 
@@ -396,6 +399,13 @@ class KafkaSink(
     new KafkaProducer[String, Array[Byte]](props)
   }
 
+  private def createAdminClient: AdminClient = {
+    val adminProps = new Properties()
+    adminProps.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaConfig.brokers)
+    adminProps.put(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG, "5000")
+    AdminClient.create(adminProps)
+  }
+
   /** Background health check for Kafka recovery.
     * Checks if Kafka cluster is accessible using Admin API.
     * Runs until Kafka is marked healthy again.
@@ -406,13 +416,7 @@ class KafkaSink(
       override def run(): Unit = {
         log.info(s"Starting background health check for Kafka cluster at ${kafkaConfig.brokers}")
 
-        // Create admin client for health checks
-        val adminProps = new Properties()
-        adminProps.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaConfig.brokers)
-        adminProps.put(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG, "5000")
-        val adminClient = AdminClient.create(adminProps)
-
-        try while (!kafkaHealthy)
+        try while (!kafkaHealthy && !stopped)
           Try {
             // Lightweight cluster metadata query - checks if cluster is reachable
             // Don't check specific topics - they may not exist yet (especially bad topic)
@@ -423,23 +427,34 @@ class KafkaSink(
               log.info(s"Kafka cluster at ${kafkaConfig.brokers} is accessible - marking Kafka as healthy")
               kafkaHealthy = true
             case Failure(err) =>
-              log.warn(s"Kafka cluster at ${kafkaConfig.brokers} not accessible: ${err.getMessage}")
-              Thread.sleep(kafkaConfig.startupCheckInterval.toMillis)
-          } finally adminClient.close()
+              if (!stopped) {
+                log.warn(s"Kafka cluster at ${kafkaConfig.brokers} not accessible: ${err.getMessage}")
+                Thread.sleep(kafkaConfig.startupCheckInterval.toMillis)
+              }
+          } finally healthCheckLatch.countDown()
       }
     }
     executorService.execute(healthRunnable)
   } else {
+    // No health check running, signal immediately
+    healthCheckLatch.countDown()
     log.info(s"Health check disabled for topic $topicName (using shared cluster health from good sink)")
   }
 
   override def shutdown(): Unit = {
+    // Signal health check thread to stop
+    stopped = true
+
     // First flush any buffered events so they can be sent to Kafka or SQS as needed
     EventStorage.flush()
 
     // Then flush and close Kafka producer
     kafkaProducer.flush()
     kafkaProducer.close()
+
+    // Wait for health check thread to complete before closing admin client
+    healthCheckLatch.await(5, TimeUnit.SECONDS)
+    adminClient.close()
 
     // Stop and drain the shared executor to ensure all async sends complete
     executorService.shutdown()
