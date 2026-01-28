@@ -32,6 +32,7 @@ final class SQSPublisher(
   @volatile private var sqsHealthy: Boolean = false
   @volatile private var lastFlushedTime     = 0L
   @volatile private var stopped: Boolean    = false
+  @volatile private var healthCheckFuture: Option[java.util.concurrent.ScheduledFuture[_]] = None
 
   private val buffer = new EventBuffer(
     maxSize = sqsConfig.maxBufferSize,
@@ -74,6 +75,9 @@ final class SQSPublisher(
   def stop(): Unit = {
     // Mark as stopped to prevent scheduled tasks from running
     stopped = true
+
+    // Cancel the health check task
+    healthCheckFuture.foreach(_.cancel(false))
 
     // Synchronous final flush to prevent data loss
     val finalBatch = buffer.drain()
@@ -268,7 +272,7 @@ final class SQSPublisher(
 
   private def scheduleSqsHealthCheck(): Unit = {
     if (stopped) return // Don't schedule health checks after stopped
-    executorService.scheduleAtFixedRate(
+    val future = executorService.scheduleAtFixedRate(
       new Runnable {
         override def run(): Unit =
           if (!stopped) {
@@ -279,7 +283,7 @@ final class SQSPublisher(
       sqsConfig.startupCheckInterval.toMillis,
       MILLISECONDS
     )
-    ()
+    healthCheckFuture = Some(future)
   }
 }
 
