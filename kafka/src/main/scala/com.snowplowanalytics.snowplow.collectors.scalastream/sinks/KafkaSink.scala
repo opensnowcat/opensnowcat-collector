@@ -88,6 +88,8 @@ class KafkaSink(
   private val blockingEc = scala.concurrent.ExecutionContext.fromExecutor(blockingExecutor)
 
   @volatile private var kafkaHealthy: Boolean = true
+  @volatile private var stopped: Boolean      = false
+  private val healthCheckLatch                = new java.util.concurrent.CountDownLatch(1)
 
   override def isHealthy: Boolean = kafkaHealthy
 
@@ -414,7 +416,7 @@ class KafkaSink(
       override def run(): Unit = {
         log.info(s"Starting background health check for Kafka cluster at ${kafkaConfig.brokers}")
 
-        try while (!kafkaHealthy)
+        try while (!kafkaHealthy && !stopped)
           Try {
             // Lightweight cluster metadata query - checks if cluster is reachable
             // Don't check specific topics - they may not exist yet (especially bad topic)
@@ -425,23 +427,33 @@ class KafkaSink(
               log.info(s"Kafka cluster at ${kafkaConfig.brokers} is accessible - marking Kafka as healthy")
               kafkaHealthy = true
             case Failure(err) =>
-              log.warn(s"Kafka cluster at ${kafkaConfig.brokers} not accessible: ${err.getMessage}")
-              Thread.sleep(kafkaConfig.startupCheckInterval.toMillis)
-          } finally ()
+              if (!stopped) {
+                log.warn(s"Kafka cluster at ${kafkaConfig.brokers} not accessible: ${err.getMessage}")
+                Thread.sleep(kafkaConfig.startupCheckInterval.toMillis)
+              }
+          } finally healthCheckLatch.countDown()
       }
     }
     executorService.execute(healthRunnable)
   } else {
+    // No health check running, signal immediately
+    healthCheckLatch.countDown()
     log.info(s"Health check disabled for topic $topicName (using shared cluster health from good sink)")
   }
 
   override def shutdown(): Unit = {
+    // Signal health check thread to stop
+    stopped = true
+
     // First flush any buffered events so they can be sent to Kafka or SQS as needed
     EventStorage.flush()
 
     // Then flush and close Kafka producer
     kafkaProducer.flush()
     kafkaProducer.close()
+
+    // Wait for health check thread to complete before closing admin client
+    healthCheckLatch.await(5, TimeUnit.SECONDS)
     adminClient.close()
 
     // Stop and drain the shared executor to ensure all async sends complete

@@ -29,9 +29,9 @@ final class SQSPublisher(
 ) {
   import SQSPublisher._
 
-  @volatile private var sqsHealthy: Boolean = false
-  @volatile private var lastFlushedTime     = 0L
-  @volatile private var stopped: Boolean    = false
+  @volatile private var sqsHealthy: Boolean                                                = false
+  @volatile private var lastFlushedTime                                                    = 0L
+  @volatile private var stopped: Boolean                                                   = false
   @volatile private var healthCheckFuture: Option[java.util.concurrent.ScheduledFuture[_]] = None
 
   private val buffer = new EventBuffer(
