@@ -5,7 +5,7 @@ import scala.collection.mutable
 
 /** Thread-safe event buffer with configurable size limits.
   *
-  * @param maxSize Maximum number of events to buffer
+  * @param maxSize Maximum number of events to buffer (overflow drops oldest events)
   * @param byteThreshold Flush when buffer exceeds this many bytes
   * @param recordThreshold Flush when buffer exceeds this many records
   */
@@ -16,8 +16,9 @@ private[sinks] class EventBuffer(
 ) {
   import EventBuffer._
 
-  private val events    = mutable.Queue.empty[Event]
-  private var byteCount = 0L
+  private val events                 = mutable.Queue.empty[Event]
+  private var byteCount              = 0L
+  @volatile private var totalDropped = 0L
 
   /** Store an event in the buffer.
     *
@@ -34,6 +35,7 @@ private[sinks] class EventBuffer(
       val dropped     = events.dequeue()
       val droppedSize = ByteBuffer.wrap(dropped.payload).capacity.toLong
       byteCount = Math.max(0, byteCount - droppedSize)
+      totalDropped += 1
       overflowed = true
     }
 
@@ -63,10 +65,10 @@ private[sinks] class EventBuffer(
 
   /** Get current buffer statistics.
     *
-    * @return Current size and byte count
+    * @return Current size, byte count, and total dropped events
     */
   def stats: BufferStats = synchronized {
-    BufferStats(events.size, byteCount)
+    BufferStats(events.size, byteCount, totalDropped)
   }
 }
 
@@ -80,5 +82,5 @@ private[sinks] object EventBuffer {
     currentBytes: Long
   )
 
-  final case class BufferStats(size: Int, bytes: Long)
+  final case class BufferStats(size: Int, bytes: Long, totalDropped: Long)
 }

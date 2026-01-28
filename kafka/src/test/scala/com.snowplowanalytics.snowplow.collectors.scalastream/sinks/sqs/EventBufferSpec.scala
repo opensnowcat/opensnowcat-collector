@@ -126,6 +126,28 @@ class EventBufferSpec extends Specification {
 
       stats.size must beEqualTo(2)
       stats.bytes must beGreaterThan(0L)
+      stats.totalDropped must beEqualTo(0L)
+    }
+
+    "track total dropped events on buffer overflow" in {
+      val buffer = new EventBuffer(
+        maxSize = 3,
+        byteThreshold = 10000,
+        recordThreshold = 100
+      )
+
+      // Fill a buffer to capacity
+      buffer.store("event1".getBytes("UTF-8"), "key1")
+      buffer.store("event2".getBytes("UTF-8"), "key2")
+      buffer.store("event3".getBytes("UTF-8"), "key3")
+
+      // Add more events causing overflow
+      buffer.store("event4".getBytes("UTF-8"), "key4")
+      buffer.store("event5".getBytes("UTF-8"), "key5")
+
+      val stats = buffer.stats
+      stats.totalDropped must beEqualTo(2L)
+      stats.size must beEqualTo(3)
     }
 
     "be thread-safe" in {
