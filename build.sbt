@@ -57,7 +57,7 @@ lazy val commonExclusions = Seq(
 
 lazy val buildInfoSettings = Seq(
   buildInfoPackage := "com.snowplowanalytics.snowplow.collectors.scalastream.generated",
-  buildInfoKeys := Seq[BuildInfoKey](organization, moduleName, name, version, "shortName" -> "ssc", scalaVersion)
+  buildInfoKeys := Seq[BuildInfoKey](organization, moduleName, name, version, "shortName" -> "osc", scalaVersion)
 )
 
 // Make package (build) metadata available within source code for integration tests.

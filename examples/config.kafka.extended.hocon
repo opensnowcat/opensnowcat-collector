@@ -392,6 +392,8 @@ collector {
     }
     # Enable an experimental feature to expose the routes from Segment.io, meaning that analytics.js could use collector's backend.
     enableAnalyticsJsBridge = false
+    # Enable an experimental feature to collect data from Amplitude SDK through custom serverUrl
+    enableAmplitudeBridge = false
   }
 }
 
