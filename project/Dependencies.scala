@@ -24,7 +24,7 @@ object Dependencies {
 
   object V {
     // Java
-    val awsSdk      = "1.12.787"
+    val awsSdkV2    = "2.38.4"
     val pubsub      = "1.132.4"
     val kafka       = "3.9.1"
     val lz4Java     = "1.8.1"
@@ -69,10 +69,9 @@ object Dependencies {
     val jackson = "com.fasterxml.jackson.core" % "jackson-databind"     % V.jackson // nsq only
     val jacksonCore = "com.fasterxml.jackson.core" % "jackson-core"       % V.jackson
     val thrift  = "org.apache.thrift"          % "libthrift"            % V.thrift
-    val kinesis = "com.amazonaws"              % "aws-java-sdk-kinesis" % V.awsSdk
-    val sqs     = "com.amazonaws"              % "aws-java-sdk-sqs"     % V.awsSdk
-    val sts =
-      "com.amazonaws" % "aws-java-sdk-sts" % V.awsSdk % Runtime // Enables web token authentication https://github.com/snowplow/stream-collector/issues/169
+    val kinesis = "software.amazon.awssdk" % "kinesis"  % V.awsSdkV2
+    val sqs     = "software.amazon.awssdk" % "sqs"      % V.awsSdkV2
+    val sts     = "software.amazon.awssdk" % "sts"      % V.awsSdkV2 % Runtime // Enables web token authentication https://github.com/snowplow/stream-collector/issues/169
     val pubsub       = "com.google.cloud" % "google-cloud-pubsub" % V.pubsub
     val kafkaClients = ("org.apache.kafka"  % "kafka-clients"         % V.kafka)
       .exclude("org.lz4", "lz4-java")
