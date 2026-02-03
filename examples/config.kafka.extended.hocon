@@ -197,6 +197,10 @@ collector {
       brokers = "localhost:9092,another.host:9092"
       ## Number of retries to perform before giving up on sending a record
       retries = 10
+
+      # Thread pool size for Kafka async ops
+      threadPoolSize = 10
+
       # The kafka producer has a variety of possible configuration options defined at
       # https://kafka.apache.org/documentation/#producerconfigs
       # Some values are set to other values from this config by default:
@@ -209,10 +213,106 @@ collector {
       #  "value.serializer"   = "org.apache.kafka.common.serialization.StringSerializer"
       #}
 
+      # Kafka timeout configurations to prevent blocking when Kafka is unavailable
+      # These settings control how quickly the collector fails over to SQS backup (if configured)
+      kafkaTimeouts {
+        # Maximum time (ms) to block when Kafka is unavailable before failover
+        # Controls how long send() and partitionsFor() will block
+        # Trade-offs:
+        #   - Higher values: More resilient to brief network hiccups, but slower failover to SQS
+        #   - Lower values: Faster failover, but may prematurely fail during transient issues
+        # Recommendation: Set based on your network latency + typical Kafka recovery time
+        # Default: 5000 (5 seconds) - suitable for most environments
+        maxBlockMs = 5000
+
+        # Maximum time (ms) for a request to complete
+        # Controls the timeout for individual produce requests
+        # Should align with your Kafka broker's request.timeout.ms setting
+        # Default: 5000 (5 seconds)
+        requestTimeoutMs = 5000
+
+        # Maximum time (ms) for the entire delivery process (including retries)
+        # Should be >= request.timeout.ms to allow for retries
+        # Formula: request.timeout.ms + (retry_time * retries)
+        # Default: 10000 (10 seconds)
+        deliveryTimeoutMs = 10000
+
+        # Maximum age (ms) of metadata before forcing a refresh
+        # Trade-offs:
+        #   - Lower values: Detect Kafka failures faster, but more network overhead
+        #   - Higher values: Less network overhead, but slower failure detection
+        # Recommendation: Balance between failure detection speed and network efficiency
+        # Default: 5000 (5 seconds)
+        metadataMaxAgeMs = 5000
+      }
+
+      # Retry policy for Kafka operations
+      # Controls exponential backoff behavior when Kafka writes fail
+      # After retries are exhausted, the collector will:
+      #   - Mark Kafka as unhealthy
+      #   - Start background health check for recovery detection
+      #   - Failover to SQS if configured (otherwise continue retrying)
+      backoffPolicy {
+        # Minimum backoff delay (ms) between retries
+        # First retry will wait at least this long
+        # Default: 500ms
+        minBackoff = 500
+
+        # Maximum backoff delay (ms) between retries
+        # Backoff will not exceed this value
+        # Default: 5000ms (5 seconds)
+        maxBackoff = 5000
+
+        # Maximum number of retries before giving up
+        # After exhausting retries:
+        #   - With SQS backup: Events go to SQS, Kafka health check starts
+        #   - Without SQS: Kafka is marked unhealthy, events are dropped
+        # Recommendation: Balance between resilience and latency
+        #   - Higher values: More resilient to transient failures, but longer delays
+        #   - Lower values: Faster failover to SQS, but less tolerance for brief outages
+        # Default: 10 retries (approx 30-50 seconds total with exponential backoff)
+        maxRetries = 10
+      }
+
+      # Interval for background health checks
+      # When Kafka is marked unhealthy, a background thread periodically checks if Kafka has recovered
+      # Uses lightweight Kafka Admin API (describeTopics) - does NOT send actual events
+      # Once Kafka is detected as healthy, the collector automatically resumes sending to Kafka
+      # Trade-offs:
+      #   - Lower values: Faster recovery detection, but more frequent API calls
+      #   - Higher values: Less overhead, but slower to detect Kafka recovery
+      # Recommendation: 5-10 seconds for most environments
+      # Default: 5 seconds
+      startupCheckInterval = 5 seconds
+
       # Optional. Maximum number of bytes that a single record can contain.
       # If a record is bigger, a size violation bad row is emitted instead
       # Default: 1 MB
       maxBytes = 1000000
+
+      # Optional: SQS integration for redundancy or backup
+      # When enabled, events are written to SQS only when Kafka fails (failover/backup mode)
+      #sqs {
+      #  region = "eu-central-1"
+      #  threadPoolSize = 8
+      #  startupCheckInterval = 10 seconds
+      #  maxBufferSize = 100000
+      #
+      #  # IMPORTANT: Must be FULL queue URLs (not just queue names)
+      #  # Format: https://sqs.{region}.amazonaws.com/{account-id}/{queue-name}
+      #  goodQueueUrl = "https://sqs.eu-central-1.amazonaws.com/123456789012/good-events"
+      #  badQueueUrl = "https://sqs.eu-central-1.amazonaws.com/123456789012/bad-events"
+      #
+      #  aws {
+      #    accessKey = iam
+      #    secretKey = iam
+      #  }
+      #  backoffPolicy {
+      #    minBackoff = 1000
+      #    maxBackoff = 10000
+      #    maxRetries = 10
+      #  }
+      #}
     }
 
     # Incoming events are stored in a buffer before being sent to Kinesis/Kafka.
@@ -222,8 +322,18 @@ collector {
     # - the combined size of the stored records reaches byte-limit or
     # - the time in milliseconds since the buffer was last emptied reaches time-limit
     buffer {
+      # Maximum buffer size in bytes (3MB)
+      # For high-volume production, consider increasing to 10485760 (10MB)
       byteLimit = 3145728
+
+      # Maximum number of records before flush
+      # For high-volume production, consider increasing to 1000
       recordLimit = 500
+
+      # Maximum time to buffer before flush (5 seconds)
+      # Balances latency vs. efficiency
+      # Lower values = lower latency but more API calls
+      # Higher values = higher latency but fewer API calls
       timeLimit = 5000
     }
   }

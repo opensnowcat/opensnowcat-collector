@@ -212,7 +212,9 @@ lazy val kafkaSettings =
       Dependencies.Libraries.kafkaClients,
       Dependencies.Libraries.mskAuth,
       Dependencies.Libraries.nettyAll,
-      Dependencies.Libraries.jacksonCore
+      Dependencies.Libraries.jacksonCore,
+      Dependencies.Libraries.sqs,
+      Dependencies.Libraries.sts
     )
   )
 

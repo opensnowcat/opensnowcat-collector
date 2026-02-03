@@ -143,8 +143,20 @@ package model {
     maxBytes: Int,
     brokers: String,
     retries: Int,
-    producerConf: Option[Map[String, String]]
+    producerConf: Option[Map[String, String]],
+    threadPoolSize: Int = 10,
+    sqs: Option[Kafka.SQS] = None,
+    kafkaTimeouts: Option[KafkaTimeouts] = None,
+    backoffPolicy: KinesisBackoffPolicyConfig = KinesisBackoffPolicyConfig(500, 5000, 10),
+    startupCheckInterval: FiniteDuration = 5.seconds
   ) extends SinkConfig
+
+  final case class KafkaTimeouts(
+    maxBlockMs: Int = 5000,
+    requestTimeoutMs: Int = 5000,
+    deliveryTimeoutMs: Int = 10000,
+    metadataMaxAgeMs: Int = 5000
+  )
   final case class Nsq(maxBytes: Int, host: String, port: Int) extends SinkConfig
   final case class Stdout(maxBytes: Int) extends SinkConfig
   final case class Rabbitmq(
@@ -269,6 +281,19 @@ package model {
 
     implicit def collectorConfigReader: ConfigReader[CollectorConfig] =
       deriveReader[CollectorConfig]
+  }
+
+  object Kafka {
+    final case class SQS(
+      region: String,
+      threadPoolSize: Int,
+      aws: AWSConfig,
+      backoffPolicy: SqsBackoffPolicyConfig,
+      startupCheckInterval: FiniteDuration,
+      goodQueueUrl: String,
+      badQueueUrl: String,
+      maxBufferSize: Int
+    )
   }
 
 }

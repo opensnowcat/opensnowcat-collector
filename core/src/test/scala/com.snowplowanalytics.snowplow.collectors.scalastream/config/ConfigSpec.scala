@@ -103,8 +103,15 @@ abstract class ConfigSpec extends Specification {
   )
 
   def sinkConfigRefFactory(app: String): SinkConfig = app match {
-    case "nsq"   => Nsq(maxBytes = 1000000, "nsqHost", 4150)
-    case "kafka" => Kafka(maxBytes = 1000000, "localhost:9092,another.host:9092", 10, None)
+    case "nsq" => Nsq(maxBytes = 1000000, "nsqHost", 4150)
+    case "kafka" =>
+      Kafka(
+        maxBytes = 1000000,
+        brokers = "localhost:9092,another.host:9092",
+        retries = 10,
+        producerConf = None,
+        threadPoolSize = 10
+      )
     case "pubsub" =>
       GooglePubSub(
         maxBytes = 10000000,
@@ -175,7 +182,45 @@ abstract class ConfigSpec extends Specification {
         val config      = Paths.get(getClass.getResource(s"/config.$app.$suffix.hocon").toURI)
         val argv        = Array("--config", config.toString)
         val (result, _) = stubCollector.parseConfig(argv)
-        (result must be).equalTo(configRefFactory(app))
+        val expected = (app, suffix) match {
+          case ("kafka", "extended") =>
+            // Extended Kafka config includes sqs configuration and kafkaTimeouts
+            configRefFactory(app).copy(
+              streams = configRefFactory(app)
+                .streams
+                .copy(
+                  sink = configRefFactory(app)
+                    .streams
+                    .sink
+                    .asInstanceOf[Kafka]
+                    .copy(
+                      kafkaTimeouts = Some(
+                        KafkaTimeouts(
+                          maxBlockMs = 5000,
+                          requestTimeoutMs = 5000,
+                          deliveryTimeoutMs = 10000,
+                          metadataMaxAgeMs = 5000
+                        )
+                      ),
+                      sqs = Some(
+                        Kafka.SQS(
+                          region = "us-east-1",
+                          threadPoolSize = 10,
+                          aws = AWSConfig("iam", "iam"),
+                          backoffPolicy = SqsBackoffPolicyConfig(500, 5000, 5),
+                          startupCheckInterval = 5.seconds,
+                          goodQueueUrl = "https://sqs.us-east-1.amazonaws.com/123456789/good-events",
+                          badQueueUrl = "https://sqs.us-east-1.amazonaws.com/123456789/bad-events",
+                          maxBufferSize = 50000
+                        )
+                      )
+                    )
+                )
+            )
+          case _ =>
+            configRefFactory(app)
+        }
+        (result must be).equalTo(expected)
       }
     }
   }
