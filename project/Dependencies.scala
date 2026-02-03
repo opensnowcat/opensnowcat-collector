@@ -27,6 +27,7 @@ object Dependencies {
     val awsSdk      = "1.12.787"
     val pubsub      = "1.132.4"
     val kafka       = "3.9.1"
+    val lz4Java     = "1.8.1"
     val mskAuth     = "2.2.0"
     val nsqClient   = "1.3.0"
     val jodaTime    = "2.12.7"
@@ -73,7 +74,9 @@ object Dependencies {
     val sts =
       "com.amazonaws" % "aws-java-sdk-sts" % V.awsSdk % Runtime // Enables web token authentication https://github.com/snowplow/stream-collector/issues/169
     val pubsub       = "com.google.cloud" % "google-cloud-pubsub" % V.pubsub
-    val kafkaClients = "org.apache.kafka" % "kafka-clients"       % V.kafka
+    val kafkaClients = ("org.apache.kafka"  % "kafka-clients"         % V.kafka)
+      .exclude("org.lz4", "lz4-java")
+    val lz4Java = "at.yawk.lz4"             % "lz4-java"              % V.lz4Java    // use fixed version from maintained fork to address CVE-2025-12183
     val mskAuth =
       "software.amazon.msk" % "aws-msk-iam-auth" % V.mskAuth % Runtime // Enables AWS MSK IAM authentication https://github.com/snowplow/stream-collector/pull/214
 

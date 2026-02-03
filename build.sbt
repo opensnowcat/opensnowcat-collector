@@ -211,6 +211,7 @@ lazy val kafkaSettings =
     Docker / packageName := "scala-stream-collector-kafka",
     libraryDependencies ++= Seq(
       Dependencies.Libraries.kafkaClients,
+      Dependencies.Libraries.lz4Java,
       Dependencies.Libraries.mskAuth,
       Dependencies.Libraries.nettyAll,
       Dependencies.Libraries.jacksonCore,
