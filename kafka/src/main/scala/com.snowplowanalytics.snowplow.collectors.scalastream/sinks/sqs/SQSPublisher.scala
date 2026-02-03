@@ -1,8 +1,15 @@
 package com.snowplowanalytics.snowplow.collectors.scalastream.sinks.sqs
 
-import com.amazonaws.auth._
-import com.amazonaws.services.sqs.model.{MessageAttributeValue, SendMessageBatchRequest, SendMessageBatchRequestEntry}
-import com.amazonaws.services.sqs.{AmazonSQS, AmazonSQSClientBuilder}
+import software.amazon.awssdk.auth.credentials._
+import software.amazon.awssdk.regions.Region
+import software.amazon.awssdk.services.sqs.SqsClient
+import software.amazon.awssdk.services.sqs.model.{
+  GetQueueAttributesRequest,
+  MessageAttributeValue,
+  QueueAttributeName,
+  SendMessageBatchRequest,
+  SendMessageBatchRequestEntry
+}
 import com.snowplowanalytics.snowplow.collectors.scalastream.model._
 
 import java.util.UUID
@@ -98,7 +105,7 @@ final class SQSPublisher(
     // The executorService is shared with KafkaSink and will be shut down by its owner
     ioThreadPool.shutdown()
     ioThreadPool.awaitTermination(10, SECONDS)
-    client.shutdown()
+    client.close()
     ()
   }
 
@@ -212,13 +219,17 @@ final class SQSPublisher(
                 )
                 None
               } else {
-                val entry =
-                  new SendMessageBatchRequestEntry(UUID.randomUUID().toString, encoded).withMessageAttributes(
+                val entry = SendMessageBatchRequestEntry
+                  .builder()
+                  .id(UUID.randomUUID().toString)
+                  .messageBody(encoded)
+                  .messageAttributes(
                     Map(
                       "kinesisKey" ->
-                        new MessageAttributeValue().withDataType("String").withStringValue(event.key)
+                        MessageAttributeValue.builder().dataType("String").stringValue(event.key).build()
                     ).asJava
                   )
+                  .build()
                 Some((event, entry))
               }
             }
@@ -226,14 +237,14 @@ final class SQSPublisher(
           if (entries.isEmpty) {
             List.empty
           } else {
-            val result = client.sendMessageBatch(
-              new SendMessageBatchRequest().withQueueUrl(queueUrl).withEntries(entries.map(_._2).asJava)
-            )
+            val batchRequest =
+              SendMessageBatchRequest.builder().queueUrl(queueUrl).entries(entries.map(_._2).asJava).build()
+            val result = client.sendMessageBatch(batchRequest)
             val failures =
-              result.getFailed.asScala.map(f => (f.getId, BatchResultErrorInfo(f.getCode, f.getMessage))).toMap
+              result.failed().asScala.map(f => (f.id(), BatchResultErrorInfo(f.code(), f.message()))).toMap
             entries.collect {
-              case (event, entry) if failures.contains(entry.getId) =>
-                (event, failures(entry.getId))
+              case (event, entry) if failures.contains(entry.id()) =>
+                (event, failures(entry.id()))
             }
           }
         }
@@ -254,8 +265,9 @@ final class SQSPublisher(
 
   private def checkSqsHealth(): Unit =
     try {
-      import com.amazonaws.services.sqs.model.GetQueueAttributesRequest
-      client.getQueueAttributes(new GetQueueAttributesRequest(queueUrl).withAttributeNames("QueueArn"))
+      val request =
+        GetQueueAttributesRequest.builder().queueUrl(queueUrl).attributeNames(QueueAttributeName.QUEUE_ARN).build()
+      client.getQueueAttributes(request)
       if (!sqsHealthy) {
         log.info(s"SQS backup queue $queueLabel reachable")
       }
@@ -300,14 +312,27 @@ object SQSPublisher {
 
   final case class BatchResultErrorInfo(code: String, message: String)
 
-  def buildClient(config: Kafka.SQS): AmazonSQS = {
-    val provider = config.aws match {
-      case AWSConfig("default", "default") => new DefaultAWSCredentialsProviderChain()
-      case AWSConfig("iam", "iam")         => InstanceProfileCredentialsProvider.getInstance()
-      case AWSConfig("env", "env")         => new EnvironmentVariableCredentialsProvider()
-      case AWSConfig(accessKey, secretKey) =>
-        new AWSStaticCredentialsProvider(new BasicAWSCredentials(accessKey, secretKey))
+  def buildClient(config: Kafka.SQS): SqsClient = {
+    val provider = getProvider(config.aws)
+    SqsClient.builder().region(Region.of(config.region)).credentialsProvider(provider).build()
+  }
+
+  private def getProvider(awsConfig: AWSConfig): AwsCredentialsProvider = {
+    def isDefault(key: String): Boolean = key == "default"
+    def isIam(key: String): Boolean     = key == "iam"
+    def isEnv(key: String): Boolean     = key == "env"
+
+    (awsConfig.accessKey, awsConfig.secretKey) match {
+      case (a, s) if isDefault(a) && isDefault(s) =>
+        DefaultCredentialsProvider.builder().build()
+      case (a, s) if isIam(a) && isIam(s) =>
+        InstanceProfileCredentialsProvider.builder().build()
+      case (a, s) if isEnv(a) && isEnv(s) =>
+        EnvironmentVariableCredentialsProvider.create()
+      case _ =>
+        StaticCredentialsProvider.create(
+          AwsBasicCredentials.create(awsConfig.accessKey, awsConfig.secretKey)
+        )
     }
-    AmazonSQSClientBuilder.standard().withRegion(config.region).withCredentials(provider).build()
   }
 }
