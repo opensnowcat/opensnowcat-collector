@@ -275,7 +275,7 @@ object AmplitudeBridge {
       // tracker version (required)
       "tv" -> Json.fromString(trackerVersion),
       // platform
-      "p" -> Json.fromString("web"),
+      "p" -> Json.fromString("app"),
       // base64-encoded event
       "ue_px" -> Json.fromString(
         Base64.getEncoder.encodeToString(eventPayload.noSpaces.getBytes(StandardCharsets.UTF_8))
