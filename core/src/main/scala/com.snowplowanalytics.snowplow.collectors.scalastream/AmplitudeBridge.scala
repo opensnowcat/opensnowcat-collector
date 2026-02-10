@@ -7,7 +7,7 @@ import org.apache.pekko.http.scaladsl.server._
 
 import com.snowplowanalytics.snowplow.collectors.scalastream.model.CrossDomainConfig
 
-object AmplitudeBridge {
+object AmplitudeBridge extends Bridge {
 
   import io.circe._
 
@@ -111,25 +111,13 @@ object AmplitudeBridge {
     )
   }
 
-  def routes(
-    queryString: Option[String],
-    cookie: Option[HttpCookie],
-    userAgent: Option[String],
-    refererUri: Option[String],
-    hostname: String,
-    ip: RemoteAddress,
-    doNotTrack: Boolean,
-    request: HttpRequest,
-    spAnonymous: Option[String],
-    extractContentType: Directive1[ContentType],
-    collectorService: Service
-  ): Route = {
-    val crossDomainConfig = collectorService.crossDomainConfig
+  override def route(ctx: BridgeContext): Route = {
+    val crossDomainConfig = ctx.collectorService.crossDomainConfig
     pathPrefix(Vendor / Version) {
       path("httpapi" | "batch") {
         // Handle CORS preflight
         options {
-          val corsHeaders = buildCorsHeaders(request, crossDomainConfig)
+          val corsHeaders = buildCorsHeaders(ctx.request, crossDomainConfig)
           if (corsHeaders.exists(_.isInstanceOf[`Access-Control-Allow-Origin`])) {
             complete(HttpResponse(StatusCodes.OK).withHeaders(corsHeaders))
           } else {
@@ -139,25 +127,25 @@ object AmplitudeBridge {
         } ~
           // Handle POST requests
           post {
-            val corsHeaders = buildCorsHeaders(request, crossDomainConfig)
+            val corsHeaders = buildCorsHeaders(ctx.request, crossDomainConfig)
             // Check if origin is allowed before processing
             if (corsHeaders.exists(_.isInstanceOf[`Access-Control-Allow-Origin`])) {
-              extractContentType { ct =>
+              ctx.extractContentType { ct =>
                 withSizeLimit(20L * 1024L * 1024L) {
                   entity(as[String]) { body =>
                     handleAmplitudeRequest(
                       body,
                       ct,
-                      queryString,
-                      cookie,
-                      userAgent,
-                      refererUri,
-                      hostname,
-                      ip,
-                      doNotTrack,
-                      request,
-                      spAnonymous,
-                      collectorService,
+                      ctx.queryString,
+                      ctx.cookie,
+                      ctx.userAgent,
+                      ctx.refererUri,
+                      ctx.hostname,
+                      ctx.ip,
+                      ctx.doNotTrack,
+                      ctx.request,
+                      ctx.spAnonymous,
+                      ctx.collectorService,
                       corsHeaders
                     )
                   }
