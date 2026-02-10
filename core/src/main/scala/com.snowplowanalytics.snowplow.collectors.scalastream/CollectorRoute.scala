@@ -69,6 +69,20 @@ trait CollectorRoute {
               collectorService = collectorService
             )
 
+            val amplitudeRoutes = AmplitudeBridge.routes(
+              queryString = qs,
+              cookie = cookie,
+              userAgent = userAgent,
+              refererUri = refererURI,
+              hostname = host,
+              ip = ip,
+              doNotTrack = dnt,
+              request = request,
+              spAnonymous = spAnonymous,
+              extractContentType = extractContentType,
+              collectorService = collectorService
+            )
+
             // get the adapter vendor and version from the path
             val collectorRoutes = path(Segment / Segment) { (vendor, version) =>
               val path = collectorService.determinePath(vendor, version)
@@ -134,10 +148,11 @@ trait CollectorRoute {
                 }
               }
 
-            if (collectorService.enableAnalyticsJsBridge) {
-              analyticsJsRoutes ~ collectorRoutes
-            } else {
-              collectorRoutes
+            (collectorService.enableAnalyticsJsBridge, collectorService.enableAmplitudeBridge) match {
+              case (true, true)   => analyticsJsRoutes ~ amplitudeRoutes ~ collectorRoutes
+              case (true, false)  => analyticsJsRoutes ~ collectorRoutes
+              case (false, true)  => amplitudeRoutes ~ collectorRoutes
+              case (false, false) => collectorRoutes
             }
           }
         }

@@ -30,7 +30,7 @@ import io.circe._
 import io.circe.parser._
 import com.snowplowanalytics.snowplow.CollectorPayload.thrift.model1.CollectorPayload
 import com.snowplowanalytics.snowplow.badrows.{BadRow, Failure, Payload, Processor}
-import com.snowplowanalytics.snowplow.collectors.scalastream.fixtures.AnalyticsJsFixture
+import com.snowplowanalytics.snowplow.collectors.scalastream.fixtures.{AmplitudeFixture, AnalyticsJsFixture}
 import com.snowplowanalytics.snowplow.collectors.scalastream.model._
 import org.specs2.mutable.Specification
 
@@ -1014,6 +1014,53 @@ class CollectorServiceSpec extends Specification {
 
       "accept a screen payload" in {
         runTest(AnalyticsJsFixture.screenPayload, "v1/s", AnalyticsJsBridge.EventType.Screen)
+      }
+    }
+  }
+
+  "The collector service (amplitude)" should {
+    "cookie" in {
+      "accept an amplitude event batch" in {
+        val ProbeService(s, good, bad) = probeService()
+
+        // Extract first event from the batch
+        val batchPayload = AmplitudeFixture.httpapiPayload
+        val firstEvent   = batchPayload.hcursor.get[List[io.circe.Json]]("events").toOption.flatMap(_.headOption).get
+
+        val amplitudeEvent = AmplitudeBridge.AmplitudeEvent(
+          deviceId = firstEvent.hcursor.get[String]("device_id").toOption,
+          userId = firstEvent.hcursor.get[String]("user_id").toOption,
+          time = firstEvent.hcursor.get[Long]("time").toOption,
+          eventData = firstEvent
+        )
+
+        val response = s.cookie(
+          queryString = None,
+          body = Option(firstEvent.noSpaces),
+          path = "/com.snowplowanalytics.snowplow/tp2",
+          cookie = None,
+          userAgent = None,
+          refererUri = None,
+          hostname = "h",
+          ip = RemoteAddress.Unknown,
+          request = HttpRequest(),
+          pixelExpected = false,
+          doNotTrack = false,
+          amplitudeEvent = Some(amplitudeEvent)
+        )
+
+        good.storedRawEvents must have size 1
+
+        response.status.isSuccess() must beTrue
+
+        // allow decoding the payload
+        val decoded     = new CollectorPayload
+        val decoder     = new org.apache.thrift.TDeserializer
+        val actualEvent = good.storedRawEvents.head
+        decoder.deserialize(decoded, actualEvent)
+        decoded.body.isEmpty must beFalse
+
+        bad.storedRawEvents must have size 0
       }
     }
   }
