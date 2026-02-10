@@ -14,19 +14,29 @@ object AmplitudeBridge {
   val jsonResponse: Json = Json.fromJsonObject(JsonObject("success" -> Json.fromBoolean(true)))
 
   def successResponse(eventsIngested: Int, payloadSizeBytes: Int): String =
-    Json.fromJsonObject(JsonObject(
-      "code"               -> Json.fromInt(200),
-      "events_ingested"    -> Json.fromInt(eventsIngested),
-      "payload_size_bytes" -> Json.fromInt(payloadSizeBytes),
-      "server_upload_time" -> Json.fromLong(System.currentTimeMillis())
-    )).noSpaces
+    Json
+      .fromJsonObject(
+        JsonObject(
+          "code"               -> Json.fromInt(200),
+          "events_ingested"    -> Json.fromInt(eventsIngested),
+          "payload_size_bytes" -> Json.fromInt(payloadSizeBytes),
+          "server_upload_time" -> Json.fromLong(System.currentTimeMillis())
+        )
+      )
+      .noSpaces
 
   private def errorResponse(code: Int, error: String): HttpEntity.Strict =
-    HttpEntity(ContentTypes.`application/json`,
-      Json.fromJsonObject(JsonObject(
-        "code"  -> Json.fromInt(code),
-        "error" -> Json.fromString(error)
-      )).noSpaces)
+    HttpEntity(
+      ContentTypes.`application/json`,
+      Json
+        .fromJsonObject(
+          JsonObject(
+            "code"  -> Json.fromInt(code),
+            "error" -> Json.fromString(error)
+          )
+        )
+        .noSpaces
+    )
 
   private val Vendor  = "com.amplitude"
   private val Version = "2"
@@ -133,25 +143,26 @@ object AmplitudeBridge {
             // Check if origin is allowed before processing
             if (corsHeaders.exists(_.isInstanceOf[`Access-Control-Allow-Origin`])) {
               extractContentType { ct =>
-                withSizeLimit(20 * 1024 * 1024) {
-                entity(as[String]) { body =>
-                  handleAmplitudeRequest(
-                    body,
-                    ct,
-                    queryString,
-                    cookie,
-                    userAgent,
-                    refererUri,
-                    hostname,
-                    ip,
-                    doNotTrack,
-                    request,
-                    spAnonymous,
-                    collectorService,
-                    corsHeaders
-                  )
+                withSizeLimit(20L * 1024L * 1024L) {
+                  entity(as[String]) { body =>
+                    handleAmplitudeRequest(
+                      body,
+                      ct,
+                      queryString,
+                      cookie,
+                      userAgent,
+                      refererUri,
+                      hostname,
+                      ip,
+                      doNotTrack,
+                      request,
+                      spAnonymous,
+                      collectorService,
+                      corsHeaders
+                    )
+                  }
                 }
-              }}
+              }
             } else {
               complete(HttpResponse(StatusCodes.Forbidden, entity = errorResponse(403, "Origin not allowed")))
             }
@@ -235,13 +246,14 @@ object AmplitudeBridge {
                 }
 
                 // Preserve Set-Cookie headers from the last cookie() response
-                val cookieHeaders = responses.lastOption.toList
-                  .flatMap(_.headers.filter(_.isInstanceOf[`Set-Cookie`]))
+                val cookieHeaders = responses.lastOption.toList.flatMap(_.headers.filter(_.isInstanceOf[`Set-Cookie`]))
 
                 val response = HttpResponse(
                   StatusCodes.OK,
-                  entity = HttpEntity(ContentTypes.`application/json`,
-                    successResponse(eventsJson.size, body.getBytes("UTF-8").length))
+                  entity = HttpEntity(
+                    ContentTypes.`application/json`,
+                    successResponse(eventsJson.size, body.getBytes("UTF-8").length)
+                  )
                 ).withHeaders(corsHeaders ++ cookieHeaders)
 
                 complete(response)
