@@ -151,9 +151,11 @@ class CollectorRouteSpec extends Specification with Specs2RouteTest {
     def assertResponse(response: String) = {
       val jsonE = io.circe.parser.parse(response)
       jsonE.isRight shouldEqual true
-      val json     = jsonE.right.get
-      val expected = AmplitudeBridge.jsonResponse
-      json shouldEqual expected
+      val json = jsonE.right.get
+      json.hcursor.get[Int]("code").toOption shouldEqual Some(200)
+      json.hcursor.get[Int]("events_ingested").toOption must beSome
+      json.hcursor.get[Int]("payload_size_bytes").toOption must beSome
+      json.hcursor.get[Long]("server_upload_time").toOption must beSome
     }
 
     "accept an httpapi event" in {

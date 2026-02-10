@@ -13,6 +13,21 @@ object AmplitudeBridge {
 
   val jsonResponse: Json = Json.fromJsonObject(JsonObject("success" -> Json.fromBoolean(true)))
 
+  def successResponse(eventsIngested: Int, payloadSizeBytes: Int): String =
+    Json.fromJsonObject(JsonObject(
+      "code"               -> Json.fromInt(200),
+      "events_ingested"    -> Json.fromInt(eventsIngested),
+      "payload_size_bytes" -> Json.fromInt(payloadSizeBytes),
+      "server_upload_time" -> Json.fromLong(System.currentTimeMillis())
+    )).noSpaces
+
+  private def errorResponse(code: Int, error: String): HttpEntity.Strict =
+    HttpEntity(ContentTypes.`application/json`,
+      Json.fromJsonObject(JsonObject(
+        "code"  -> Json.fromInt(code),
+        "error" -> Json.fromString(error)
+      )).noSpaces)
+
   private val Vendor  = "com.amplitude"
   private val Version = "2"
 
@@ -81,7 +96,7 @@ object AmplitudeBridge {
 
     originHeader.toList ++ List(
       `Access-Control-Allow-Methods`(HttpMethods.POST, HttpMethods.OPTIONS),
-      `Access-Control-Allow-Headers`("Content-Type"),
+      `Access-Control-Allow-Headers`("Content-Type", "SP-Anonymous"),
       `Access-Control-Max-Age`(3600)
     )
   }
@@ -109,7 +124,7 @@ object AmplitudeBridge {
             complete(HttpResponse(StatusCodes.OK).withHeaders(corsHeaders))
           } else {
             // Origin not allowed - return 403
-            complete(HttpResponse(StatusCodes.Forbidden, entity = "Origin not allowed"))
+            complete(HttpResponse(StatusCodes.Forbidden, entity = errorResponse(403, "Origin not allowed")))
           }
         } ~
           // Handle POST requests
@@ -118,6 +133,7 @@ object AmplitudeBridge {
             // Check if origin is allowed before processing
             if (corsHeaders.exists(_.isInstanceOf[`Access-Control-Allow-Origin`])) {
               extractContentType { ct =>
+                withSizeLimit(20 * 1024 * 1024) {
                 entity(as[String]) { body =>
                   handleAmplitudeRequest(
                     body,
@@ -135,9 +151,9 @@ object AmplitudeBridge {
                     corsHeaders
                   )
                 }
-              }
+              }}
             } else {
-              complete(HttpResponse(StatusCodes.Forbidden, entity = "Origin not allowed"))
+              complete(HttpResponse(StatusCodes.Forbidden, entity = errorResponse(403, "Origin not allowed")))
             }
           }
       }
@@ -175,8 +191,8 @@ object AmplitudeBridge {
                 // Get the actual IP address from RemoteAddress
                 val actualIp = ip.toOption.map(_.getHostAddress).getOrElse("unknown")
 
-                // Process each event in the batch
-                eventsJson.foreach { eventJson =>
+                // Process each event in the batch, collecting responses
+                val responses = eventsJson.map { eventJson =>
                   val cursor = eventJson.hcursor
 
                   // Replace $remote placeholder with actual IP address
@@ -218,31 +234,39 @@ object AmplitudeBridge {
                   )
                 }
 
-                // Return success response with CORS headers
-                // Note: We don't set Amplitude cookies - the client SDK handles that
+                // Preserve Set-Cookie headers from the last cookie() response
+                val cookieHeaders = responses.lastOption.toList
+                  .flatMap(_.headers.filter(_.isInstanceOf[`Set-Cookie`]))
+
                 val response = HttpResponse(
                   StatusCodes.OK,
-                  entity = HttpEntity(ContentTypes.`application/json`, jsonResponse.noSpaces)
-                ).withHeaders(corsHeaders)
+                  entity = HttpEntity(ContentTypes.`application/json`,
+                    successResponse(eventsJson.size, body.getBytes("UTF-8").length))
+                ).withHeaders(corsHeaders ++ cookieHeaders)
 
                 complete(response)
 
               case Right(_) =>
                 complete(
-                  HttpResponse(StatusCodes.BadRequest, entity = "Events array is empty").withHeaders(corsHeaders)
+                  HttpResponse(StatusCodes.BadRequest, entity = errorResponse(400, "Events array is empty"))
+                    .withHeaders(corsHeaders)
                 )
               case Left(_) =>
                 complete(
-                  HttpResponse(StatusCodes.BadRequest, entity = "Missing or invalid events array")
+                  HttpResponse(StatusCodes.BadRequest, entity = errorResponse(400, "Missing or invalid events array"))
                     .withHeaders(corsHeaders)
                 )
             }
           case None =>
-            complete(HttpResponse(StatusCodes.BadRequest, entity = "Missing api_key").withHeaders(corsHeaders))
+            complete(
+              HttpResponse(StatusCodes.BadRequest, entity = errorResponse(400, "Missing api_key"))
+                .withHeaders(corsHeaders)
+            )
         }
       case Left(error) =>
         complete(
-          HttpResponse(StatusCodes.BadRequest, entity = s"Invalid JSON: ${error.getMessage}").withHeaders(corsHeaders)
+          HttpResponse(StatusCodes.BadRequest, entity = errorResponse(400, s"Invalid JSON: ${error.getMessage}"))
+            .withHeaders(corsHeaders)
         )
     }
 
