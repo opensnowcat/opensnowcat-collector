@@ -55,33 +55,23 @@ trait CollectorRoute {
         headers { (userAgent, refererURI, rawRequestURI, spAnonymous) =>
           val qs = queryString(rawRequestURI)
           extractors(spAnonymous) { (host, ip, request) =>
-            val analyticsJsRoutes = AnalyticsJsBridge.routes(
-              queryString = qs,
-              cookie = cookie,
-              userAgent = userAgent,
-              refererUri = refererURI,
-              hostname = host,
-              ip = ip,
-              doNotTrack = dnt,
-              request = request,
-              spAnonymous = spAnonymous,
-              extractContentType = extractContentType,
-              collectorService = collectorService
+            val ctx = BridgeContext(
+              qs,
+              cookie,
+              userAgent,
+              refererURI,
+              host,
+              ip,
+              dnt,
+              request,
+              spAnonymous,
+              extractContentType,
+              collectorService
             )
 
-            val amplitudeRoutes = AmplitudeBridge.routes(
-              queryString = qs,
-              cookie = cookie,
-              userAgent = userAgent,
-              refererUri = refererURI,
-              hostname = host,
-              ip = ip,
-              doNotTrack = dnt,
-              request = request,
-              spAnonymous = spAnonymous,
-              extractContentType = extractContentType,
-              collectorService = collectorService
-            )
+            val bridgeRoutes = collectorService.bridges.foldRight[Route](reject) { (bridge, acc) =>
+              bridge.route(ctx) ~ acc
+            }
 
             // get the adapter vendor and version from the path
             val collectorRoutes = path(Segment / Segment) { (vendor, version) =>
@@ -148,12 +138,7 @@ trait CollectorRoute {
                 }
               }
 
-            (collectorService.enableAnalyticsJsBridge, collectorService.enableAmplitudeBridge) match {
-              case (true, true)   => analyticsJsRoutes ~ amplitudeRoutes ~ collectorRoutes
-              case (true, false)  => analyticsJsRoutes ~ collectorRoutes
-              case (false, true)  => amplitudeRoutes ~ collectorRoutes
-              case (false, false) => collectorRoutes
-            }
+            collectorRoutes ~ bridgeRoutes
           }
         }
       }
