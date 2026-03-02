@@ -48,6 +48,12 @@ trait CollectorRoute {
       complete(StatusCodes.NotFound -> "redirects disabled")
     }
 
+  /** Bridge dispatch map, built once from the configured bridges.
+    * Keyed by (vendor, version) path segments.
+    */
+  private lazy val bridgeMap: Map[(String, String), Bridge] =
+    collectorService.bridges.map(b => (b.vendor, b.version) -> b).toMap
+
   def routes: Route =
     doNotTrack(collectorService.doNotTrackCookie) { dnt =>
       cookieIfWanted(collectorService.cookieName) { reqCookie =>
@@ -55,33 +61,30 @@ trait CollectorRoute {
         headers { (userAgent, refererURI, rawRequestURI, spAnonymous) =>
           val qs = queryString(rawRequestURI)
           extractors(spAnonymous) { (host, ip, request) =>
-            val analyticsJsRoutes = AnalyticsJsBridge.routes(
-              queryString = qs,
-              cookie = cookie,
-              userAgent = userAgent,
-              refererUri = refererURI,
-              hostname = host,
-              ip = ip,
-              doNotTrack = dnt,
-              request = request,
-              spAnonymous = spAnonymous,
-              extractContentType = extractContentType,
-              collectorService = collectorService
+            val ctx = BridgeContext(
+              qs,
+              cookie,
+              userAgent,
+              refererURI,
+              host,
+              ip,
+              dnt,
+              request,
+              spAnonymous,
+              extractContentType,
+              collectorService
             )
 
-            val amplitudeRoutes = AmplitudeBridge.routes(
-              queryString = qs,
-              cookie = cookie,
-              userAgent = userAgent,
-              refererUri = refererURI,
-              hostname = host,
-              ip = ip,
-              doNotTrack = dnt,
-              request = request,
-              spAnonymous = spAnonymous,
-              extractContentType = extractContentType,
-              collectorService = collectorService
-            )
+            val bridgeRoutes = if (bridgeMap.nonEmpty) {
+              pathPrefix(Segment / Segment) { (vendor, version) =>
+                bridgeMap.get((vendor, version)) match {
+                  case Some(bridge) => bridge.route(ctx)
+                  case None         => reject
+                }
+              }
+            } else {
+              reject
+            }
 
             // get the adapter vendor and version from the path
             val collectorRoutes = path(Segment / Segment) { (vendor, version) =>
@@ -148,12 +151,7 @@ trait CollectorRoute {
                 }
               }
 
-            (collectorService.enableAnalyticsJsBridge, collectorService.enableAmplitudeBridge) match {
-              case (true, true)   => analyticsJsRoutes ~ amplitudeRoutes ~ collectorRoutes
-              case (true, false)  => analyticsJsRoutes ~ collectorRoutes
-              case (false, true)  => amplitudeRoutes ~ collectorRoutes
-              case (false, false) => collectorRoutes
-            }
+            collectorRoutes ~ bridgeRoutes
           }
         }
       }

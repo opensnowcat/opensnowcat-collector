@@ -65,9 +65,13 @@ class CollectorRouteSpec extends Specification with Specs2RouteTest {
           def determinePath(vendor: String, version: String): String = "/p1/p2"
           def enableDefaultRedirect: Boolean                         = withRedirects
 
-          def enableAnalyticsJsBridge: Boolean = analyticsJsBridge
-          def enableAmplitudeBridge: Boolean   = amplitudeBridge
-          def sinksHealthy: Boolean            = true
+          def bridges: Seq[Bridge] = {
+            val b = List.newBuilder[Bridge]
+            if (analyticsJsBridge) b += AnalyticsJsBridge
+            if (amplitudeBridge) b += AmplitudeBridge
+            b.result()
+          }
+          def sinksHealthy: Boolean = true
           def crossDomainConfig: model.CrossDomainConfig =
             model.CrossDomainConfig(enabled = false, domains = List("*"), secure = false)
         }

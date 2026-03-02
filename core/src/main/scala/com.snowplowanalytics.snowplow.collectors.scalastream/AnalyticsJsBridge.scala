@@ -1,18 +1,17 @@
 package com.snowplowanalytics.snowplow.collectors.scalastream
 
 import org.apache.pekko.http.scaladsl.model._
-import org.apache.pekko.http.scaladsl.model.headers.HttpCookie
 import org.apache.pekko.http.scaladsl.server.Directives._
 import org.apache.pekko.http.scaladsl.server._
 
-object AnalyticsJsBridge {
+object AnalyticsJsBridge extends Bridge {
 
   import io.circe._
 
   val jsonResponse: Json = Json.fromJsonObject(JsonObject("success" -> Json.fromBoolean(true)))
 
-  private val Vendor  = "com.segment"
-  private val Version = "v1"
+  override val vendor  = "com.segment"
+  override val version = "v1"
 
   case class Event(eventType: EventType, anonymousUserId: Option[String], userId: Option[String])
 
@@ -26,20 +25,8 @@ object AnalyticsJsBridge {
     case object Screen extends EventType
   }
 
-  def routes(
-    queryString: Option[String],
-    cookie: Option[HttpCookie],
-    userAgent: Option[String],
-    refererUri: Option[String],
-    hostname: String,
-    ip: RemoteAddress,
-    doNotTrack: Boolean,
-    request: HttpRequest,
-    spAnonymous: Option[String],
-    extractContentType: Directive1[ContentType],
-    collectorService: Service
-  ) =
-    path(Vendor / Version / Segment) { segment =>
+  override def route(ctx: BridgeContext): Route =
+    path(Segment) { segment =>
       optionalCookie("ajs_anonymous_id") { ajsAnonymousUserIdCookie =>
         optionalCookie("ajs_user_id") { ajsUserIdCookie =>
           val anonymousUserId = ajsAnonymousUserIdCookie.map(_.toCookie().value)
@@ -63,28 +50,31 @@ object AnalyticsJsBridge {
           }
           if (eventType.isDefined)
             post {
-              extractContentType { ct =>
+              ctx.extractContentType { ct =>
                 // analytics.js is sending "text/plain" content type which is not supported by the snowplow schema
                 val normalizedContentType =
                   ContentType.parse(ct.value.toLowerCase.replace("text/plain", "application/json")).toOption
 
                 entity(as[String]) { body =>
-                  val r = collectorService.cookie(
-                    queryString = queryString,
-                    body = Some(body),
-                    path = path,
-                    cookie = cookie,
-                    userAgent = userAgent,
-                    refererUri = refererUri,
-                    hostname = hostname,
-                    ip = ip,
-                    request = request,
-                    pixelExpected = false,
-                    doNotTrack = doNotTrack,
-                    contentType = normalizedContentType,
-                    spAnonymous = spAnonymous,
-                    analyticsJsEvent = eventType.map(t => Event(t, anonymousUserId = anonymousUserId, userId = userId))
-                  )
+                  val r = ctx
+                    .collectorService
+                    .cookie(
+                      queryString = ctx.queryString,
+                      body = Some(body),
+                      path = path,
+                      cookie = ctx.cookie,
+                      userAgent = ctx.userAgent,
+                      refererUri = ctx.refererUri,
+                      hostname = ctx.hostname,
+                      ip = ctx.ip,
+                      request = ctx.request,
+                      pixelExpected = false,
+                      doNotTrack = ctx.doNotTrack,
+                      contentType = normalizedContentType,
+                      spAnonymous = ctx.spAnonymous,
+                      analyticsJsEvent =
+                        eventType.map(t => Event(t, anonymousUserId = anonymousUserId, userId = userId))
+                    )
                   complete(r)
                 }
               }
