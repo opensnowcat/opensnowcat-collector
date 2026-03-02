@@ -10,8 +10,8 @@ object AnalyticsJsBridge extends Bridge {
 
   val jsonResponse: Json = Json.fromJsonObject(JsonObject("success" -> Json.fromBoolean(true)))
 
-  private val Vendor  = "com.segment"
-  private val Version = "v1"
+  override val vendor  = "com.segment"
+  override val version = "v1"
 
   case class Event(eventType: EventType, anonymousUserId: Option[String], userId: Option[String])
 
@@ -26,7 +26,7 @@ object AnalyticsJsBridge extends Bridge {
   }
 
   override def route(ctx: BridgeContext): Route =
-    path(Vendor / Version / Segment) { segment =>
+    path(Segment) { segment =>
       optionalCookie("ajs_anonymous_id") { ajsAnonymousUserIdCookie =>
         optionalCookie("ajs_user_id") { ajsUserIdCookie =>
           val anonymousUserId = ajsAnonymousUserIdCookie.map(_.toCookie().value)

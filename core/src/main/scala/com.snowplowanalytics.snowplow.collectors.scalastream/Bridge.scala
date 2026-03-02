@@ -19,5 +19,14 @@ case class BridgeContext(
 )
 
 trait Bridge {
+  /** The first path segment used for dispatch */
+  def vendor: String
+
+  /** The second path segment used for dispatch */
+  def version: String
+
+  /** Handle the request after vendor/version has already been consumed from the path.
+    * Only the remaining path segments need to be matched here.
+    */
   def route(ctx: BridgeContext): Route
 }

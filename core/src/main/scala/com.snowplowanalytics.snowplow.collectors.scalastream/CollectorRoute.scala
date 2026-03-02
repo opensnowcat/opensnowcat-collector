@@ -48,6 +48,12 @@ trait CollectorRoute {
       complete(StatusCodes.NotFound -> "redirects disabled")
     }
 
+  /** Bridge dispatch map, built once from the configured bridges.
+    * Keyed by (vendor, version) path segments.
+    */
+  private lazy val bridgeMap: Map[(String, String), Bridge] =
+    collectorService.bridges.map(b => (b.vendor, b.version) -> b).toMap
+
   def routes: Route =
     doNotTrack(collectorService.doNotTrackCookie) { dnt =>
       cookieIfWanted(collectorService.cookieName) { reqCookie =>
@@ -69,8 +75,15 @@ trait CollectorRoute {
               collectorService
             )
 
-            val bridgeRoutes = collectorService.bridges.foldRight[Route](reject) { (bridge, acc) =>
-              bridge.route(ctx) ~ acc
+            val bridgeRoutes = if (bridgeMap.nonEmpty) {
+              pathPrefix(Segment / Segment) { (vendor, version) =>
+                bridgeMap.get((vendor, version)) match {
+                  case Some(bridge) => bridge.route(ctx)
+                  case None         => reject
+                }
+              }
+            } else {
+              reject
             }
 
             // get the adapter vendor and version from the path

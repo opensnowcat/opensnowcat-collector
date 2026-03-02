@@ -38,8 +38,8 @@ object AmplitudeBridge extends Bridge {
         .noSpaces
     )
 
-  private val Vendor  = "com.amplitude"
-  private val Version = "2"
+  override val vendor  = "com.amplitude"
+  override val version = "2"
 
   case class AmplitudeEvent(
     deviceId: Option[String],
@@ -113,8 +113,7 @@ object AmplitudeBridge extends Bridge {
 
   override def route(ctx: BridgeContext): Route = {
     val crossDomainConfig = ctx.collectorService.crossDomainConfig
-    pathPrefix(Vendor / Version) {
-      path("httpapi" | "batch") {
+    path("httpapi" | "batch") {
         // Handle CORS preflight
         options {
           val corsHeaders = buildCorsHeaders(ctx.request, crossDomainConfig)
@@ -156,7 +155,6 @@ object AmplitudeBridge extends Bridge {
             }
           }
       }
-    }
   }
 
   private def handleAmplitudeRequest(
