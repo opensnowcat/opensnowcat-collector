@@ -19,6 +19,7 @@ case class BridgeContext(
 )
 
 trait Bridge {
+
   /** The first path segment used for dispatch */
   def vendor: String
 

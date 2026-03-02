@@ -114,47 +114,47 @@ object AmplitudeBridge extends Bridge {
   override def route(ctx: BridgeContext): Route = {
     val crossDomainConfig = ctx.collectorService.crossDomainConfig
     path("httpapi" | "batch") {
-        // Handle CORS preflight
-        options {
+      // Handle CORS preflight
+      options {
+        val corsHeaders = buildCorsHeaders(ctx.request, crossDomainConfig)
+        if (corsHeaders.exists(_.isInstanceOf[`Access-Control-Allow-Origin`])) {
+          complete(HttpResponse(StatusCodes.OK).withHeaders(corsHeaders))
+        } else {
+          // Origin not allowed - return 403
+          complete(HttpResponse(StatusCodes.Forbidden, entity = errorResponse(403, "Origin not allowed")))
+        }
+      } ~
+        // Handle POST requests
+        post {
           val corsHeaders = buildCorsHeaders(ctx.request, crossDomainConfig)
+          // Check if origin is allowed before processing
           if (corsHeaders.exists(_.isInstanceOf[`Access-Control-Allow-Origin`])) {
-            complete(HttpResponse(StatusCodes.OK).withHeaders(corsHeaders))
-          } else {
-            // Origin not allowed - return 403
-            complete(HttpResponse(StatusCodes.Forbidden, entity = errorResponse(403, "Origin not allowed")))
-          }
-        } ~
-          // Handle POST requests
-          post {
-            val corsHeaders = buildCorsHeaders(ctx.request, crossDomainConfig)
-            // Check if origin is allowed before processing
-            if (corsHeaders.exists(_.isInstanceOf[`Access-Control-Allow-Origin`])) {
-              ctx.extractContentType { ct =>
-                withSizeLimit(20L * 1024L * 1024L) {
-                  entity(as[String]) { body =>
-                    handleAmplitudeRequest(
-                      body,
-                      ct,
-                      ctx.queryString,
-                      ctx.cookie,
-                      ctx.userAgent,
-                      ctx.refererUri,
-                      ctx.hostname,
-                      ctx.ip,
-                      ctx.doNotTrack,
-                      ctx.request,
-                      ctx.spAnonymous,
-                      ctx.collectorService,
-                      corsHeaders
-                    )
-                  }
+            ctx.extractContentType { ct =>
+              withSizeLimit(20L * 1024L * 1024L) {
+                entity(as[String]) { body =>
+                  handleAmplitudeRequest(
+                    body,
+                    ct,
+                    ctx.queryString,
+                    ctx.cookie,
+                    ctx.userAgent,
+                    ctx.refererUri,
+                    ctx.hostname,
+                    ctx.ip,
+                    ctx.doNotTrack,
+                    ctx.request,
+                    ctx.spAnonymous,
+                    ctx.collectorService,
+                    corsHeaders
+                  )
                 }
               }
-            } else {
-              complete(HttpResponse(StatusCodes.Forbidden, entity = errorResponse(403, "Origin not allowed")))
             }
+          } else {
+            complete(HttpResponse(StatusCodes.Forbidden, entity = errorResponse(403, "Origin not allowed")))
           }
-      }
+        }
+    }
   }
 
   private def handleAmplitudeRequest(
