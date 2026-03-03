@@ -48,6 +48,12 @@ trait CollectorRoute {
       complete(StatusCodes.NotFound -> "redirects disabled")
     }
 
+  /** Bridge dispatch map, built once from the configured bridges.
+    * Keyed by (vendor, version) path segments.
+    */
+  private lazy val bridgeMap: Map[(String, String), Bridge] =
+    collectorService.bridges.map(b => (b.vendor, b.version) -> b).toMap
+
   def routes: Route =
     doNotTrack(collectorService.doNotTrackCookie) { dnt =>
       cookieIfWanted(collectorService.cookieName) { reqCookie =>
@@ -55,19 +61,30 @@ trait CollectorRoute {
         headers { (userAgent, refererURI, rawRequestURI, spAnonymous) =>
           val qs = queryString(rawRequestURI)
           extractors(spAnonymous) { (host, ip, request) =>
-            val analyticsJsRoutes = AnalyticsJsBridge.routes(
-              queryString = qs,
-              cookie = cookie,
-              userAgent = userAgent,
-              refererUri = refererURI,
-              hostname = host,
-              ip = ip,
-              doNotTrack = dnt,
-              request = request,
-              spAnonymous = spAnonymous,
-              extractContentType = extractContentType,
-              collectorService = collectorService
+            val ctx = BridgeContext(
+              qs,
+              cookie,
+              userAgent,
+              refererURI,
+              host,
+              ip,
+              dnt,
+              request,
+              spAnonymous,
+              extractContentType,
+              collectorService
             )
+
+            val bridgeRoutes = if (bridgeMap.nonEmpty) {
+              pathPrefix(Segment / Segment) { (vendor, version) =>
+                bridgeMap.get((vendor, version)) match {
+                  case Some(bridge) => bridge.route(ctx)
+                  case None         => reject
+                }
+              }
+            } else {
+              reject
+            }
 
             // get the adapter vendor and version from the path
             val collectorRoutes = path(Segment / Segment) { (vendor, version) =>
@@ -134,11 +151,7 @@ trait CollectorRoute {
                 }
               }
 
-            if (collectorService.enableAnalyticsJsBridge) {
-              analyticsJsRoutes ~ collectorRoutes
-            } else {
-              collectorRoutes
-            }
+            collectorRoutes ~ bridgeRoutes
           }
         }
       }
