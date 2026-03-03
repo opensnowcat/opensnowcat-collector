@@ -24,7 +24,7 @@ object Dependencies {
 
   object V {
     // Java
-    val awsSdkV2    = "2.38.4"
+    val awsSdkV2    = "2.42.4"
     val pubsub      = "1.132.4"
     val kafka       = "3.9.1"
     val lz4Java     = "1.8.1"
@@ -40,9 +40,9 @@ object Dependencies {
     val jnrUnixsock = "0.38.22"
     val protobuf    = "3.25.5"
     val guava       = "32.1.3-jre"
-    val nettyAll    = "4.1.128.Final"
+    val nettyAll    = "4.1.130.Final"
     val commonsLang = "3.18.0"
-    val grpcNettyShaded = "1.76.1"
+    val grpcNettyShaded = "1.76.3"
 
     // Scala
     val collectorPayload = "0.0.0"
