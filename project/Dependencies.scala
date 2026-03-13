@@ -75,7 +75,7 @@ object Dependencies {
     val pubsub       = "com.google.cloud" % "google-cloud-pubsub" % V.pubsub
     val kafkaClients = ("org.apache.kafka"  % "kafka-clients"         % V.kafka)
       .exclude("org.lz4", "lz4-java")
-    val lz4Java = "at.yawk.lz4"             % "lz4-java"              % V.lz4Java    // use fixed version from maintained fork to address CVE-2025-12183
+    val lz4Java = "at.yawk.lz4"             % "lz4-java"              % V.lz4Java
     val mskAuth =
       "software.amazon.msk" % "aws-msk-iam-auth" % V.mskAuth % Runtime // Enables AWS MSK IAM authentication https://github.com/snowplow/stream-collector/pull/214
 
