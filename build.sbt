@@ -129,6 +129,7 @@ lazy val kinesisSettings =
       Dependencies.Libraries.kinesis,
       Dependencies.Libraries.sts,
       Dependencies.Libraries.sqs,
+      Dependencies.Libraries.nettyAll,
       // integration tests dependencies
       Dependencies.Libraries.specs2It,
       Dependencies.Libraries.specs2CEIt
@@ -157,7 +158,8 @@ lazy val sqsSettings =
     Docker / packageName := "scala-stream-collector-sqs",
     libraryDependencies ++= Seq(
       Dependencies.Libraries.sqs,
-      Dependencies.Libraries.sts
+      Dependencies.Libraries.sts,
+      Dependencies.Libraries.nettyAll
     )
   )
 
