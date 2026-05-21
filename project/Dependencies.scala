@@ -40,7 +40,7 @@ object Dependencies {
     val jnrUnixsock = "0.38.22"
     val protobuf    = "3.25.5"
     val guava       = "32.1.3-jre"
-    val nettyAll    = "4.1.132.Final"
+    val nettyAll    = "4.1.133.Final"
     val commonsLang = "3.18.0"
     val grpcNettyShaded = "1.80.0"
 
