@@ -12,7 +12,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      dependency-graph: write
     steps:
       - uses: actions/checkout@v6
       - name: Set up JDK
