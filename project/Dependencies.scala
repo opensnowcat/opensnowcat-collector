@@ -36,7 +36,7 @@ object Dependencies {
     val config      = "1.4.3"
     val rabbitMQ    = "5.21.0"
     val jackson     = "2.21.1"
-    val thrift      = "0.16.0"
+    val thrift      = "0.23.0"
     val jnrUnixsock = "0.38.22"
     val protobuf    = "3.25.5"
     val guava       = "32.1.3-jre"
