@@ -52,17 +52,14 @@ class GooglePubSubCollectorSpec extends Specification with CatsIO with BeforeAft
       RetryPolicies.constantDelay[IO](1.second)
     )
 
-    Http.status(request).flatMap { status =>
-      if (status == Status.Ok) {
-        IO.pure(status)
-      } else {
-        IO.raiseError(new RuntimeException(s"Health endpoint not ready yet: $status"))
-      }
-    }.retryingOnFailures(
-      _ => true,
-      retryPolicy,
-      (_, _) => IO.unit
-    )
+    Http.status(request)
+      .attempt
+      .map(_.getOrElse(Status.ServiceUnavailable))
+      .retryingOnFailures(
+        _ != Status.Ok,
+        retryPolicy,
+        (_, _) => IO.unit
+      )
   }
 
   "collector-pubsub" should {
