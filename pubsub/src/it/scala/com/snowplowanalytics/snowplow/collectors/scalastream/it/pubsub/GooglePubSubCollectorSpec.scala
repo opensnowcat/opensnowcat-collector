@@ -27,6 +27,9 @@ import org.specs2.specification.BeforeAfterAll
 
 import org.testcontainers.containers.GenericContainer
 
+import retry.syntax.all._
+import retry.RetryPolicies
+
 import com.snowplowanalytics.snowplow.collectors.scalastream.it.utils._
 import com.snowplowanalytics.snowplow.collectors.scalastream.it.{EventGenerator, Http}
 
@@ -41,6 +44,26 @@ class GooglePubSubCollectorSpec extends Specification with CatsIO with BeforeAft
   val stopTimeout = 20.second
 
   val maxBytes = 10000
+
+  /** Poll the health endpoint until it returns 200 OK or timeout */
+  def waitForHealthy(request: Request[IO], maxWait: FiniteDuration): IO[Status] = {
+    val retryPolicy = RetryPolicies.limitRetriesByCumulativeDelay[IO](
+      maxWait,
+      RetryPolicies.constantDelay[IO](1.second)
+    )
+
+    Http.status(request).flatMap { status =>
+      if (status == Status.Ok) {
+        IO.pure(status)
+      } else {
+        IO.raiseError(new RuntimeException(s"Health endpoint not ready yet: $status"))
+      }
+    }.retryingOnFailures(
+      _ => true,
+      retryPolicy,
+      (_, _) => IO.unit
+    )
+  }
 
   "collector-pubsub" should {
     "be able to parse the minimal config" in {
@@ -162,8 +185,9 @@ class GooglePubSubCollectorSpec extends Specification with CatsIO with BeforeAft
               Containers.emulatorHostPort,
               List(topicGood, topicBad)
             )
+            _                 <- IO.sleep(12.seconds)
             _                 <- log(testName, "Checking /sink-health after creating the topics")
-            statusAfterCreate <- Http.status(request)
+            statusAfterCreate <- waitForHealthy(request, 30.seconds)
             collectorOutput <- PubSub.consumeWithRetry(
               Containers.projectId,
               Containers.emulatorHost,
