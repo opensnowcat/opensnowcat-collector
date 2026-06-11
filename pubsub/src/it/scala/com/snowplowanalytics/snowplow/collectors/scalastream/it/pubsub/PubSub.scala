@@ -32,6 +32,9 @@ import io.grpc.{ManagedChannel, ManagedChannelBuilder}
 import cats.implicits._
 
 import cats.effect.{IO, Resource}
+import scala.concurrent.duration._
+import retry.syntax.all._
+import retry.RetryPolicies
 
 import com.snowplowanalytics.snowplow.collectors.scalastream.it.utils._
 import com.snowplowanalytics.snowplow.collectors.scalastream.it.CollectorOutput
@@ -69,6 +72,40 @@ object PubSub {
         bad     <- IO(badRaw.map(parseBadRow))
       } yield CollectorOutput(good, bad)
     }
+  }
+
+  /** Consume messages with retry logic, polling until expected count is reached or timeout.
+    * This is useful for tests where messages may not be immediately available.
+    */
+  def consumeWithRetry(
+    projectId: String,
+    emulatorHost: String,
+    emulatorPort: Int,
+    subscriptionGood: String,
+    subscriptionBad: String,
+    expectedGood: Int,
+    expectedBad: Int,
+    maxWait: FiniteDuration
+  ): IO[CollectorOutput] = {
+    val retryPolicy = RetryPolicies.limitRetriesByCumulativeDelay[IO](
+      maxWait,
+      RetryPolicies.constantDelay[IO](2.seconds)
+    )
+
+    def checkMessages: IO[CollectorOutput] =
+      consume(projectId, emulatorHost, emulatorPort, subscriptionGood, subscriptionBad).flatMap { output =>
+        if (output.good.size >= expectedGood && output.bad.size >= expectedBad) {
+          IO.pure(output)
+        } else {
+          IO.raiseError(new RuntimeException(s"Not enough messages yet: good=${output.good.size}/$expectedGood, bad=${output.bad.size}/$expectedBad"))
+        }
+      }
+
+    checkMessages.retryingOnFailures(
+      _ => true,  // Retry on all errors
+      retryPolicy,
+      (_, _) => IO.unit
+    )
   }
 
   private def resourceProviders(

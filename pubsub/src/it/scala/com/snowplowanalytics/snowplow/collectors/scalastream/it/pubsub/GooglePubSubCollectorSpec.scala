@@ -162,15 +162,17 @@ class GooglePubSubCollectorSpec extends Specification with CatsIO with BeforeAft
               Containers.emulatorHostPort,
               List(topicGood, topicBad)
             )
-            _                 <- IO.sleep(10.second)
             _                 <- log(testName, "Checking /sink-health after creating the topics")
             statusAfterCreate <- Http.status(request)
-            collectorOutput <- PubSub.consume(
+            collectorOutput <- PubSub.consumeWithRetry(
               Containers.projectId,
               Containers.emulatorHost,
               Containers.emulatorHostPort,
               topicGood,
-              topicBad
+              topicBad,
+              nbGood,
+              nbBad,
+              30.seconds
             )
             _ <- printBadRows(testName, collectorOutput.bad)
           } yield {
