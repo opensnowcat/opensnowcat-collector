@@ -18,7 +18,6 @@ import java.net.{MalformedURLException, URL}
 import java.nio.charset.StandardCharsets.UTF_8
 import java.time.Instant
 import java.util.UUID
-import org.apache.commons.codec.binary.Base64
 import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConverters._
@@ -69,7 +68,7 @@ trait Service {
 
 object CollectorService {
   // Contains an invisible pixel to return for `/i` requests.
-  val pixel = Base64.decodeBase64("R0lGODlhAQABAPAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==")
+  val pixel = java.util.Base64.getDecoder.decode("R0lGODlhAQABAPAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==")
 }
 
 class CollectorService(

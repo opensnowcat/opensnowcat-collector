@@ -19,8 +19,6 @@
 package com.snowplowanalytics.snowplow.collectors.scalastream
 package sinks
 
-import org.apache.commons.codec.binary.Base64
-
 class StdoutSink(val maxBytes: Int, streamName: String) extends Sink {
 
   // Print a Base64-encoded event.
@@ -28,11 +26,11 @@ class StdoutSink(val maxBytes: Int, streamName: String) extends Sink {
     streamName match {
       case "out" =>
         events.foreach { e =>
-          println(Base64.encodeBase64String(e))
+          println(java.util.Base64.getEncoder.encodeToString(e))
         }
       case "err" =>
         events.foreach { e =>
-          Console.err.println(Base64.encodeBase64String(e))
+          Console.err.println(java.util.Base64.getEncoder.encodeToString(e))
         }
     }
 
