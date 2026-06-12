@@ -28,7 +28,7 @@ import org.specs2.specification.BeforeAfterAll
 import org.testcontainers.containers.GenericContainer
 
 import com.snowplowanalytics.snowplow.collectors.scalastream.it.utils._
-import com.snowplowanalytics.snowplow.collectors.scalastream.it.{EventGenerator, Http}
+import com.snowplowanalytics.snowplow.collectors.scalastream.it.{CollectorOutput, EventGenerator, Http}
 
 class GooglePubSubCollectorSpec extends Specification with CatsIO with BeforeAfterAll {
 
@@ -143,6 +143,35 @@ class GooglePubSubCollectorSpec extends Specification with CatsIO with BeforeAft
         .use { collector =>
           val uri     = Uri.unsafeFromString(s"http://${collector.host}:${collector.port}/sink-health")
           val request = Request[IO](Method.GET, uri)
+          val maxAttempts = 30
+
+          def waitForHealthy(attemptsLeft: Int): IO[Status] =
+            Http.mkClient.use { client =>
+              def loop(n: Int): IO[Status] =
+                client.status(request).handleErrorWith(_ => IO.pure(Status.ServiceUnavailable)).flatMap { status =>
+                  if (status == Status.Ok || n <= 0) IO.pure(status)
+                  else IO.sleep(1.second) *> loop(n - 1)
+                }
+              loop(attemptsLeft)
+            }
+
+          def consumeUntilExpected(attemptsLeft: Int, acc: CollectorOutput = CollectorOutput(Nil, Nil)): IO[CollectorOutput] =
+            PubSub
+              .consume(
+                Containers.projectId,
+                Containers.emulatorHost,
+                Containers.emulatorHostPort,
+                topicGood,
+                topicBad
+              )
+              .flatMap { output =>
+                val combined = CollectorOutput(acc.good ++ output.good, acc.bad ++ output.bad)
+                val complete  = combined.good.size >= nbGood && combined.bad.size >= nbBad
+                if (complete || attemptsLeft <= 0)
+                  IO.pure(combined)
+                else
+                  IO.sleep(1.second) *> consumeUntilExpected(attemptsLeft - 1, combined)
+              }
 
           for {
             _                  <- log(testName, "Checking /sink-health before creating the topics")
@@ -162,16 +191,9 @@ class GooglePubSubCollectorSpec extends Specification with CatsIO with BeforeAft
               Containers.emulatorHostPort,
               List(topicGood, topicBad)
             )
-            _                 <- IO.sleep(10.second)
             _                 <- log(testName, "Checking /sink-health after creating the topics")
-            statusAfterCreate <- Http.status(request)
-            collectorOutput <- PubSub.consume(
-              Containers.projectId,
-              Containers.emulatorHost,
-              Containers.emulatorHostPort,
-              topicGood,
-              topicBad
-            )
+            statusAfterCreate <- waitForHealthy(maxAttempts)
+            collectorOutput   <- consumeUntilExpected(maxAttempts)
             _ <- printBadRows(testName, collectorOutput.bad)
           } yield {
             statusBeforeCreate should beEqualTo(Status.ServiceUnavailable)
