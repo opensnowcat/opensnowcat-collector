@@ -146,11 +146,13 @@ class GooglePubSubCollectorSpec extends Specification with CatsIO with BeforeAft
           val maxAttempts = 30
 
           def waitForHealthy(attemptsLeft: Int): IO[Status] =
-            Http.status(request).flatMap { status =>
-              if (status == Status.Ok || attemptsLeft <= 0)
-                IO.pure(status)
-              else
-                IO.sleep(1.second) *> waitForHealthy(attemptsLeft - 1)
+            Http.mkClient.use { client =>
+              def loop(n: Int): IO[Status] =
+                client.status(request).handleErrorWith(_ => IO.pure(Status.ServiceUnavailable)).flatMap { status =>
+                  if (status == Status.Ok || n <= 0) IO.pure(status)
+                  else IO.sleep(1.second) *> loop(n - 1)
+                }
+              loop(attemptsLeft)
             }
 
           def consumeUntilExpected(attemptsLeft: Int, acc: CollectorOutput = CollectorOutput(Nil, Nil)): IO[CollectorOutput] =
