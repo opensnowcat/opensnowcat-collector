@@ -34,7 +34,7 @@ object Dependencies {
     val slf4j       = "2.0.16"
     val log4j       = "2.25.4"
     val config      = "1.4.3"
-    val rabbitMQ    = "5.21.0"
+    val rabbitMQ    = "5.35.0"
     val jackson     = "2.21.5"
     val thrift      = "0.23.0"
     val jnrUnixsock = "0.38.22"
