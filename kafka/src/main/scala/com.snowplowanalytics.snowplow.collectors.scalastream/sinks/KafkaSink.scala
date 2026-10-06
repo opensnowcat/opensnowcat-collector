@@ -399,12 +399,8 @@ class KafkaSink(
     new KafkaProducer[String, Array[Byte]](props)
   }
 
-  private def createAdminClient: AdminClient = {
-    val adminProps = new Properties()
-    adminProps.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaConfig.brokers)
-    adminProps.put(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG, "5000")
-    AdminClient.create(adminProps)
-  }
+  private def createAdminClient: AdminClient =
+    AdminClient.create(buildAdminClientProperties(kafkaConfig))
 
   /** Background health check for Kafka recovery.
     * Checks if Kafka cluster is accessible using Admin API.
@@ -420,8 +416,9 @@ class KafkaSink(
           Try {
             // Lightweight cluster metadata query - checks if cluster is reachable
             // Don't check specific topics - they may not exist yet (especially bad topic)
-            val clusterInfo = adminClient.describeCluster()
-            clusterInfo.nodes().get(5, TimeUnit.SECONDS)
+            val clusterInfo      = adminClient.describeCluster()
+            val requestTimeoutMs = kafkaConfig.kafkaTimeouts.getOrElse(KafkaTimeouts()).requestTimeoutMs
+            clusterInfo.nodes().get(requestTimeoutMs.toLong, TimeUnit.MILLISECONDS)
           } match {
             case Success(_) =>
               log.info(s"Kafka cluster at ${kafkaConfig.brokers} is accessible - marking Kafka as healthy")
@@ -478,6 +475,17 @@ object KafkaSink {
     * @param key Partition key for Kafka
     */
   final case class Events(payloads: Array[Byte], key: String)
+
+  private[sinks] def buildAdminClientProperties(kafkaConfig: Kafka): Properties = {
+    val adminProps = new Properties()
+    val timeouts   = kafkaConfig.kafkaTimeouts.getOrElse(KafkaTimeouts())
+    adminProps.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaConfig.brokers)
+    adminProps.put(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG, timeouts.requestTimeoutMs.toString)
+
+    // Reuse producer-level client/security settings so health checks use the same transport/auth config.
+    kafkaConfig.producerConf.getOrElse(Map.empty).foreach { case (k, v) => adminProps.setProperty(k, v) }
+    adminProps
+  }
 
   /** Create a KafkaSink and schedule its EventStorage flush task.
     *
