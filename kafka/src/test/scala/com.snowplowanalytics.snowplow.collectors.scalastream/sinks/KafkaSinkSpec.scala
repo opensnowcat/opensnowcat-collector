@@ -32,5 +32,36 @@ class KafkaSinkSpec extends Specification {
       props.getProperty("sasl.mechanism") must beEqualTo("SCRAM-SHA-256")
       props.getProperty("sasl.jaas.config") must contain("ScramLoginModule")
     }
+
+    "wire AdminClient request timeout from kafkaTimeouts" in {
+      val configuredTimeoutMs = 12345
+      val conf = Kafka(
+        maxBytes = 1000000,
+        brokers = "example.com:9092",
+        retries = 10,
+        kafkaTimeouts = Some(KafkaTimeouts(requestTimeoutMs = configuredTimeoutMs)),
+        producerConf = None
+      )
+
+      val props = KafkaSink.buildAdminClientProperties(conf)
+
+      props.getProperty(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG) must beEqualTo(configuredTimeoutMs.toString)
+    }
+
+    "use default AdminClient request timeout when kafkaTimeouts are not provided" in {
+      val conf = Kafka(
+        maxBytes = 1000000,
+        brokers = "example.com:9092",
+        retries = 10,
+        kafkaTimeouts = None,
+        producerConf = None
+      )
+
+      val props = KafkaSink.buildAdminClientProperties(conf)
+
+      props.getProperty(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG) must beEqualTo(
+        KafkaTimeouts().requestTimeoutMs.toString
+      )
+    }
   }
 }
