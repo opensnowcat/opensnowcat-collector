@@ -64,8 +64,8 @@ class KafkaSink(
   private val maxRetries      = kafkaConfig.backoffPolicy.maxRetries
   private val randomGenerator = new java.util.Random()
 
-  private val kafkaProducer = createProducer
-  private val adminClient   = createAdminClient
+  private val kafkaProducer                                 = createProducer
+  @volatile private var adminClientOpt: Option[AdminClient] = None
 
   // Separate execution context for non-blocking callbacks
   implicit lazy val ec: ExecutionContextExecutorService =
@@ -395,6 +395,16 @@ class KafkaSink(
   private def createAdminClient: AdminClient =
     AdminClient.create(buildAdminClientProperties(kafkaConfig))
 
+  private def getOrCreateAdminClient(): AdminClient = this.synchronized {
+    adminClientOpt match {
+      case Some(client) => client
+      case None =>
+        val client = createAdminClient
+        adminClientOpt = Some(client)
+        client
+    }
+  }
+
   /** Background health check for Kafka recovery.
     * Checks if Kafka cluster is accessible using Admin API.
     * Runs until Kafka is marked healthy again.
@@ -403,6 +413,7 @@ class KafkaSink(
   private def checkKafkaHealth(): Unit = if (enableHealthCheck) {
     val healthRunnable = new Runnable {
       override def run(): Unit = {
+        val adminClient = getOrCreateAdminClient()
         log.info(s"Starting background health check for Kafka cluster at ${kafkaConfig.brokers}")
 
         try while (!kafkaHealthy && !stopped)
@@ -444,7 +455,10 @@ class KafkaSink(
 
     // Wait for health check thread to complete before closing admin client
     healthCheckLatch.await(5, TimeUnit.SECONDS)
-    adminClient.close()
+    this.synchronized {
+      adminClientOpt.foreach(_.close())
+      adminClientOpt = None
+    }
 
     // Stop and drain the shared executor to ensure all async sends complete
     executorService.shutdown()
