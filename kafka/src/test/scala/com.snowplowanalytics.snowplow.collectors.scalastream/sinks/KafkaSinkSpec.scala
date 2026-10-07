@@ -63,5 +63,27 @@ class KafkaSinkSpec extends Specification {
         KafkaTimeouts().requestTimeoutMs.toString
       )
     }
+
+    "keep AdminClient bootstrap and timeout settings authoritative over producerConf" in {
+      val conf = Kafka(
+        maxBytes = 1000000,
+        brokers = "authoritative-broker:9092",
+        retries = 10,
+        kafkaTimeouts = Some(KafkaTimeouts(requestTimeoutMs = 15000)),
+        producerConf = Some(
+          Map(
+            AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG  -> "overridden-broker:1234",
+            AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG -> "99999",
+            "security.protocol"                         -> "SASL_SSL"
+          )
+        )
+      )
+
+      val props = KafkaSink.buildAdminClientProperties(conf)
+
+      props.getProperty(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG) must beEqualTo("authoritative-broker:9092")
+      props.getProperty(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG) must beEqualTo("15000")
+      props.getProperty("security.protocol") must beEqualTo("SASL_SSL")
+    }
   }
 }

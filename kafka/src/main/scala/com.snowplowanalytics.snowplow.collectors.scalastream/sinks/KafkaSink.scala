@@ -413,15 +413,14 @@ class KafkaSink(
   private def checkKafkaHealth(): Unit = if (enableHealthCheck) {
     val healthRunnable = new Runnable {
       override def run(): Unit = {
-        val adminClient = getOrCreateAdminClient()
         log.info(s"Starting background health check for Kafka cluster at ${kafkaConfig.brokers}")
+        val requestTimeoutMs = kafkaConfig.kafkaTimeouts.getOrElse(KafkaTimeouts()).requestTimeoutMs
 
         try while (!kafkaHealthy && !stopped)
           Try {
             // Lightweight cluster metadata query - checks if cluster is reachable
             // Don't check specific topics - they may not exist yet (especially bad topic)
-            val clusterInfo      = adminClient.describeCluster()
-            val requestTimeoutMs = kafkaConfig.kafkaTimeouts.getOrElse(KafkaTimeouts()).requestTimeoutMs
+            val clusterInfo = getOrCreateAdminClient().describeCluster()
             clusterInfo.nodes().get(requestTimeoutMs.toLong, TimeUnit.MILLISECONDS)
           } match {
             case Success(_) =>
@@ -486,11 +485,13 @@ object KafkaSink {
   private[sinks] def buildAdminClientProperties(kafkaConfig: Kafka): Properties = {
     val adminProps = new Properties()
     val timeouts   = kafkaConfig.kafkaTimeouts.getOrElse(KafkaTimeouts())
-    adminProps.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaConfig.brokers)
-    adminProps.put(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG, timeouts.requestTimeoutMs.toString)
 
     // Reuse producer-level client/security settings so health checks use the same transport/auth config.
     kafkaConfig.producerConf.getOrElse(Map.empty).foreach { case (k, v) => adminProps.setProperty(k, v) }
+
+    // Apply AdminClient-owned properties last.
+    adminProps.setProperty(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaConfig.brokers)
+    adminProps.setProperty(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG, timeouts.requestTimeoutMs.toString)
     adminProps
   }
 
