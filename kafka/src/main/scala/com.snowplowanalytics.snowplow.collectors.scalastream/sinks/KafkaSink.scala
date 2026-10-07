@@ -197,14 +197,8 @@ class KafkaSink(
           // Mark Kafka unhealthy immediately on first failure
           // This causes concurrent batches to route directly to SQS without retrying
           // But this batch will still retry in case it's a transient failure
-          if (kafkaHealthy) {
-            this.synchronized {
-              if (kafkaHealthy) {
-                log.warn(s"Kafka failure detected, marking as unhealthy. Concurrent batches will route to SQS.")
-                kafkaHealthy = false
-                checkKafkaHealth()
-              }
-            }
+          markKafkaUnhealthyOnce {
+            log.warn(s"Kafka failure detected, marking as unhealthy. Concurrent batches will route to SQS.")
           }
           log.info(
             s"Successfully wrote ${batch.size - failedRecords.size} out of ${batch.size} records to Kafka topic $topicName"
@@ -213,14 +207,8 @@ class KafkaSink(
         }
       case Failure(f) =>
         log.error(s"writeBatchToKafka Future failed with error: ${f.getMessage}", f)
-        if (kafkaHealthy) {
-          this.synchronized {
-            if (kafkaHealthy) {
-              log.warn(s"Kafka failure detected, marking as unhealthy. Concurrent batches will route to SQS.")
-              kafkaHealthy = false
-              checkKafkaHealth()
-            }
-          }
+        markKafkaUnhealthyOnce {
+          log.warn(s"Kafka failure detected, marking as unhealthy. Concurrent batches will route to SQS.")
         }
         handleKafkaError(batch, nextBackoff, retriesLeft)
     }
@@ -255,14 +243,8 @@ class KafkaSink(
       log.error(s"Maximum number of retries reached for Kafka topic $topicName for ${failedRecords.size} records")
       // Mark Kafka as unhealthy and start background health check
       // If Kafka was already unhealthy, the background check is already running
-      if (kafkaHealthy) {
-        this.synchronized {
-          if (kafkaHealthy) {
-            log.info(s"Marking Kafka as unhealthy and starting background health check")
-            kafkaHealthy = false
-            checkKafkaHealth()
-          }
-        }
+      markKafkaUnhealthyOnce {
+        log.info(s"Marking Kafka as unhealthy and starting background health check")
       }
 
       // Try to send failed records to SQS if available
@@ -275,6 +257,17 @@ class KafkaSink(
       }
     }
   }
+
+  private def markKafkaUnhealthyOnce(onFirstTransition: => Unit): Unit =
+    if (kafkaHealthy) {
+      this.synchronized {
+        if (kafkaHealthy) {
+          onFirstTransition
+          kafkaHealthy = false
+          checkKafkaHealth()
+        }
+      }
+    }
 
   /** Write batch to Kafka asynchronously.
     * Waits for all callbacks to complete and returns failed records.
