@@ -64,8 +64,8 @@ class KafkaSink(
   private val maxRetries      = kafkaConfig.backoffPolicy.maxRetries
   private val randomGenerator = new java.util.Random()
 
-  private val kafkaProducer = createProducer
-  private val adminClient   = createAdminClient
+  private val kafkaProducer                                 = createProducer
+  @volatile private var adminClientOpt: Option[AdminClient] = None
 
   // Separate execution context for non-blocking callbacks
   implicit lazy val ec: ExecutionContextExecutorService =
@@ -197,14 +197,8 @@ class KafkaSink(
           // Mark Kafka unhealthy immediately on first failure
           // This causes concurrent batches to route directly to SQS without retrying
           // But this batch will still retry in case it's a transient failure
-          if (kafkaHealthy) {
-            this.synchronized {
-              if (kafkaHealthy) {
-                log.warn(s"Kafka failure detected, marking as unhealthy. Concurrent batches will route to SQS.")
-                kafkaHealthy = false
-                checkKafkaHealth()
-              }
-            }
+          markKafkaUnhealthyOnce {
+            log.warn(s"Kafka failure detected, marking as unhealthy. Concurrent batches will route to SQS.")
           }
           log.info(
             s"Successfully wrote ${batch.size - failedRecords.size} out of ${batch.size} records to Kafka topic $topicName"
@@ -213,14 +207,8 @@ class KafkaSink(
         }
       case Failure(f) =>
         log.error(s"writeBatchToKafka Future failed with error: ${f.getMessage}", f)
-        if (kafkaHealthy) {
-          this.synchronized {
-            if (kafkaHealthy) {
-              log.warn(s"Kafka failure detected, marking as unhealthy. Concurrent batches will route to SQS.")
-              kafkaHealthy = false
-              checkKafkaHealth()
-            }
-          }
+        markKafkaUnhealthyOnce {
+          log.warn(s"Kafka failure detected, marking as unhealthy. Concurrent batches will route to SQS.")
         }
         handleKafkaError(batch, nextBackoff, retriesLeft)
     }
@@ -255,14 +243,8 @@ class KafkaSink(
       log.error(s"Maximum number of retries reached for Kafka topic $topicName for ${failedRecords.size} records")
       // Mark Kafka as unhealthy and start background health check
       // If Kafka was already unhealthy, the background check is already running
-      if (kafkaHealthy) {
-        this.synchronized {
-          if (kafkaHealthy) {
-            log.info(s"Marking Kafka as unhealthy and starting background health check")
-            kafkaHealthy = false
-            checkKafkaHealth()
-          }
-        }
+      markKafkaUnhealthyOnce {
+        log.info(s"Marking Kafka as unhealthy and starting background health check")
       }
 
       // Try to send failed records to SQS if available
@@ -275,6 +257,17 @@ class KafkaSink(
       }
     }
   }
+
+  private def markKafkaUnhealthyOnce(onFirstTransition: => Unit): Unit =
+    if (kafkaHealthy) {
+      this.synchronized {
+        if (kafkaHealthy) {
+          onFirstTransition
+          kafkaHealthy = false
+          checkKafkaHealth()
+        }
+      }
+    }
 
   /** Write batch to Kafka asynchronously.
     * Waits for all callbacks to complete and returns failed records.
@@ -399,11 +392,17 @@ class KafkaSink(
     new KafkaProducer[String, Array[Byte]](props)
   }
 
-  private def createAdminClient: AdminClient = {
-    val adminProps = new Properties()
-    adminProps.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaConfig.brokers)
-    adminProps.put(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG, "5000")
-    AdminClient.create(adminProps)
+  private def createAdminClient: AdminClient =
+    AdminClient.create(buildAdminClientProperties(kafkaConfig))
+
+  private def getOrCreateAdminClient(): AdminClient = this.synchronized {
+    adminClientOpt match {
+      case Some(client) => client
+      case None =>
+        val client = createAdminClient
+        adminClientOpt = Some(client)
+        client
+    }
   }
 
   /** Background health check for Kafka recovery.
@@ -415,13 +414,14 @@ class KafkaSink(
     val healthRunnable = new Runnable {
       override def run(): Unit = {
         log.info(s"Starting background health check for Kafka cluster at ${kafkaConfig.brokers}")
+        val requestTimeoutMs = kafkaConfig.kafkaTimeouts.getOrElse(KafkaTimeouts()).requestTimeoutMs
 
         try while (!kafkaHealthy && !stopped)
           Try {
             // Lightweight cluster metadata query - checks if cluster is reachable
             // Don't check specific topics - they may not exist yet (especially bad topic)
-            val clusterInfo = adminClient.describeCluster()
-            clusterInfo.nodes().get(5, TimeUnit.SECONDS)
+            val clusterInfo = getOrCreateAdminClient().describeCluster()
+            clusterInfo.nodes().get(requestTimeoutMs.toLong, TimeUnit.MILLISECONDS)
           } match {
             case Success(_) =>
               log.info(s"Kafka cluster at ${kafkaConfig.brokers} is accessible - marking Kafka as healthy")
@@ -454,7 +454,10 @@ class KafkaSink(
 
     // Wait for health check thread to complete before closing admin client
     healthCheckLatch.await(5, TimeUnit.SECONDS)
-    adminClient.close()
+    this.synchronized {
+      adminClientOpt.foreach(_.close())
+      adminClientOpt = None
+    }
 
     // Stop and drain the shared executor to ensure all async sends complete
     executorService.shutdown()
@@ -478,6 +481,19 @@ object KafkaSink {
     * @param key Partition key for Kafka
     */
   final case class Events(payloads: Array[Byte], key: String)
+
+  private[sinks] def buildAdminClientProperties(kafkaConfig: Kafka): Properties = {
+    val adminProps = new Properties()
+    val timeouts   = kafkaConfig.kafkaTimeouts.getOrElse(KafkaTimeouts())
+
+    // Reuse producer-level client/security settings so health checks use the same transport/auth config.
+    kafkaConfig.producerConf.getOrElse(Map.empty).foreach { case (k, v) => adminProps.setProperty(k, v) }
+
+    // Apply AdminClient-owned properties last.
+    adminProps.setProperty(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaConfig.brokers)
+    adminProps.setProperty(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG, timeouts.requestTimeoutMs.toString)
+    adminProps
+  }
 
   /** Create a KafkaSink and schedule its EventStorage flush task.
     *

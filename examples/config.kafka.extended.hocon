@@ -227,6 +227,7 @@ collector {
 
         # Maximum time (ms) for a request to complete
         # Controls the timeout for individual produce requests
+        # Also used by the Kafka AdminClient health check requests
         # Should align with your Kafka broker's request.timeout.ms setting
         # Default: 5000 (5 seconds)
         requestTimeoutMs = 5000
@@ -276,7 +277,9 @@ collector {
 
       # Interval for background health checks
       # When Kafka is marked unhealthy, a background thread periodically checks if Kafka has recovered
-      # Uses lightweight Kafka Admin API (describeTopics) - does NOT send actual events
+      # Uses lightweight Kafka Admin API (describeCluster) - does NOT send actual events
+      # Note: this is the sleep/retry interval between health checks, not a request timeout.
+      # Request timeout is controlled by kafkaTimeouts.requestTimeoutMs above.
       # Once Kafka is detected as healthy, the collector automatically resumes sending to Kafka
       # Trade-offs:
       #   - Lower values: Faster recovery detection, but more frequent API calls
