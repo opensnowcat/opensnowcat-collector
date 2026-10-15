@@ -43,6 +43,7 @@ object Dependencies {
     val nettyAll    = "4.1.137.Final"
     val commonsLang = "3.18.0"
     val grpcNettyShaded = "1.82.4"
+    val httpclient5 = "5.6.5"
 
     // Scala
     val collectorPayload = "0.0.0"
@@ -92,6 +93,7 @@ object Dependencies {
     val nettyAll       = "io.netty"                 % "netty-all"        % V.nettyAll
     val commonsLang3   = "org.apache.commons"       % "commons-lang3"    % V.commonsLang
     val grpcNettyShaded = "io.grpc"                 % "grpc-netty-shaded" % V.grpcNettyShaded
+    val httpclient5    = "org.apache.httpcomponents.client5" % "httpclient5" % V.httpclient5
 
     // Scala
     val collectorPayload = "com.snowplowanalytics"  % "collector-payload-1"               % V.collectorPayload

@@ -23,6 +23,7 @@ lazy val commonDependencies = Seq(
   Dependencies.Libraries.log4jOverSlf4j,
   Dependencies.Libraries.config,
   Dependencies.Libraries.commonsLang3,
+  Dependencies.Libraries.httpclient5,
   // Scala
   Dependencies.Libraries.scopt,
   Dependencies.Libraries.pekkoStream,
