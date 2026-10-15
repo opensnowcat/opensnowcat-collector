@@ -129,7 +129,7 @@ class SplitBatchSpec extends Specification {
       sizeViolation.failure.actualSizeBytes must_== 1091
       sizeViolation
         .failure
-        .expectation must_== "oversized collector payload: cannot split POST requests which are not self-describing Invalid Iglu URI: s, code: INVALID_IGLUURI"
+        .expectation must_== "oversized collector payload: cannot split POST requests which are not self-describing DecodingFailure at : Invalid Iglu URI: s, code: INVALID_IGLUURI"
       sizeViolation
         .payload
         .event must_== "CollectorPayload(schema:null, ipAddress:null, timestamp:0, encoding:null, collector:null, path:ppppp"
