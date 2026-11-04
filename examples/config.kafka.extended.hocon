@@ -244,6 +244,7 @@ collector {
         #   - Higher values: Less network overhead, but slower failure detection
         # Recommendation: Balance between failure detection speed and network efficiency
         # Default: 5000 (5 seconds)
+        # Also used by the Kafka AdminClient health check (its own default would be 5 minutes)
         metadataMaxAgeMs = 5000
       }
 

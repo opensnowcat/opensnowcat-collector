@@ -85,5 +85,96 @@ class KafkaSinkSpec extends Specification {
       props.getProperty(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG) must beEqualTo("15000")
       props.getProperty("security.protocol") must beEqualTo("SASL_SSL")
     }
+
+    "wire AdminClient metadata.max.age.ms from kafkaTimeouts" in {
+      val conf = Kafka(
+        maxBytes = 1000000,
+        brokers = "example.com:9092",
+        retries = 10,
+        kafkaTimeouts = Some(KafkaTimeouts(metadataMaxAgeMs = 7000)),
+        producerConf = None
+      )
+
+      val props = KafkaSink.buildAdminClientProperties(conf)
+
+      props.getProperty(AdminClientConfig.METADATA_MAX_AGE_CONFIG) must beEqualTo("7000")
+    }
+
+    "use the producer default metadata.max.age.ms for AdminClient when kafkaTimeouts are not provided" in {
+      val conf = Kafka(
+        maxBytes = 1000000,
+        brokers = "example.com:9092",
+        retries = 10,
+        kafkaTimeouts = None,
+        producerConf = None
+      )
+
+      val props = KafkaSink.buildAdminClientProperties(conf)
+
+      props.getProperty(AdminClientConfig.METADATA_MAX_AGE_CONFIG) must beEqualTo(
+        KafkaTimeouts().metadataMaxAgeMs.toString
+      )
+    }
+
+    "let producerConf override metadata.max.age.ms for AdminClient, as it does for the producer" in {
+      val conf = Kafka(
+        maxBytes = 1000000,
+        brokers = "example.com:9092",
+        retries = 10,
+        kafkaTimeouts = Some(KafkaTimeouts(metadataMaxAgeMs = 7000)),
+        producerConf = Some(Map(AdminClientConfig.METADATA_MAX_AGE_CONFIG -> "60000"))
+      )
+
+      val props = KafkaSink.buildAdminClientProperties(conf)
+
+      props.getProperty(AdminClientConfig.METADATA_MAX_AGE_CONFIG) must beEqualTo("60000")
+    }
+
+    "classify producer-only keys" in {
+      KafkaSink.isProducerOnlyConfig("batch.size") must beTrue
+      KafkaSink.isProducerOnlyConfig("compression.type") must beTrue
+      KafkaSink.isProducerOnlyConfig("security.protocol") must beFalse
+      KafkaSink.isProducerOnlyConfig("metadata.recovery.strategy") must beFalse
+      KafkaSink.isProducerOnlyConfig("custom.plugin.key") must beFalse
+    }
+
+    "drop producer-only tuning keys from AdminClient properties and keep shared and custom keys" in {
+      val producerOnly = Seq(
+        "batch.size",
+        "linger.ms",
+        "buffer.memory",
+        "max.request.size",
+        "compression.type",
+        "enable.idempotence",
+        "max.in.flight.requests.per.connection"
+      )
+      val conf = Kafka(
+        maxBytes = 1000000,
+        brokers = "example.com:9092",
+        retries = 10,
+        kafkaTimeouts = None,
+        producerConf = Some(
+          Map(
+            "batch.size"                            -> "1000000",
+            "linger.ms"                             -> "100",
+            "buffer.memory"                         -> "128000000",
+            "max.request.size"                      -> "64000000",
+            "compression.type"                      -> "lz4",
+            "enable.idempotence"                    -> "false",
+            "max.in.flight.requests.per.connection" -> "1000",
+            "client.dns.lookup"                     -> "use_all_dns_ips",
+            "metadata.recovery.strategy"            -> "rebootstrap",
+            "custom.plugin.key"                     -> "kept"
+          )
+        )
+      )
+
+      val props = KafkaSink.buildAdminClientProperties(conf)
+
+      producerOnly.flatMap(k => Option(props.getProperty(k))) must beEmpty
+      props.getProperty("client.dns.lookup") must beEqualTo("use_all_dns_ips")
+      props.getProperty("metadata.recovery.strategy") must beEqualTo("rebootstrap")
+      props.getProperty("custom.plugin.key") must beEqualTo("kept")
+    }
   }
 }
