@@ -482,12 +482,32 @@ object KafkaSink {
     */
   final case class Events(payloads: Array[Byte], key: String)
 
+  /** True for producer-only tuning keys (batch.size, linger.ms, compression.type, ...), i.e. keys the
+    * producer knows but the AdminClient does not. They are meaningless for the health-check client and
+    * each one makes the AdminClient log "The configuration 'x' was supplied but isn't a known config".
+    * Everything else is passed through: AdminClient-known keys (security.*, sasl.*, ssl.*,
+    * client.dns.lookup, metadata.recovery.strategy, ...) and keys unknown to both clients, which may be
+    * read by custom login/callback plugins.
+    */
+  private[sinks] def isProducerOnlyConfig(key: String): Boolean =
+    ProducerConfig.configNames().contains(key) && !AdminClientConfig.configNames().contains(key)
+
   private[sinks] def buildAdminClientProperties(kafkaConfig: Kafka): Properties = {
     val adminProps = new Properties()
     val timeouts   = kafkaConfig.kafkaTimeouts.getOrElse(KafkaTimeouts())
 
-    // Reuse producer-level client/security settings so health checks use the same transport/auth config.
-    kafkaConfig.producerConf.getOrElse(Map.empty).foreach { case (k, v) => adminProps.setProperty(k, v) }
+    // Refresh cluster metadata as often as the producer does (kafkaTimeouts.metadataMaxAgeMs, 5 s by
+    // default) instead of the AdminClient default of 5 minutes, so the health check sees broker changes
+    // as quickly as the producer. Set before producerConf so an explicit producerConf value still wins,
+    // mirroring createProducer.
+    adminProps.setProperty(AdminClientConfig.METADATA_MAX_AGE_CONFIG, timeouts.metadataMaxAgeMs.toString)
+
+    // Reuse producer-level client/security settings so health checks use the same transport/auth config,
+    // minus producer-only tuning keys.
+    kafkaConfig.producerConf.getOrElse(Map.empty).foreach {
+      case (k, v) if !isProducerOnlyConfig(k) => adminProps.setProperty(k, v)
+      case _ => ()
+    }
 
     // Apply AdminClient-owned properties last.
     adminProps.setProperty(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaConfig.brokers)
