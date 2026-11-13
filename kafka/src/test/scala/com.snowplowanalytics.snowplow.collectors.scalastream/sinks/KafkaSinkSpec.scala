@@ -5,6 +5,9 @@ import com.snowplowanalytics.snowplow.collectors.scalastream.model.KafkaTimeouts
 import org.apache.kafka.clients.admin.AdminClientConfig
 import org.specs2.mutable.Specification
 
+import scala.collection.mutable.ListBuffer
+import scala.util.{Failure, Success}
+
 class KafkaSinkSpec extends Specification {
 
   "KafkaSink" should {
@@ -176,5 +179,89 @@ class KafkaSinkSpec extends Specification {
       props.getProperty("metadata.recovery.strategy") must beEqualTo("rebootstrap")
       props.getProperty("custom.plugin.key") must beEqualTo("kept")
     }
+
+    "default healthCheckRequiredSuccesses to 2" in {
+      Kafka(
+        maxBytes = 1,
+        brokers = "b:9092",
+        retries = 1,
+        producerConf = None
+      ).healthCheckRequiredSuccesses must beEqualTo(2)
+    }
+
+    "use the effective metadata.max.age.ms as the health-check confirm interval" in {
+      val base = Kafka(maxBytes = 1, brokers = "b:9092", retries = 1, producerConf = None)
+      KafkaSink.effectiveMetadataMaxAgeMs(base) must beEqualTo(5000L)
+      KafkaSink.effectiveMetadataMaxAgeMs(
+        base.copy(kafkaTimeouts = Some(KafkaTimeouts(metadataMaxAgeMs = 7000)))
+      ) must beEqualTo(7000L)
+      KafkaSink.effectiveMetadataMaxAgeMs(
+        base.copy(producerConf = Some(Map(AdminClientConfig.METADATA_MAX_AGE_CONFIG -> "60000")))
+      ) must beEqualTo(60000L)
+    }
+
+    "health check: require consecutive successes spaced by the confirm interval" in {
+      val h = new ProbeHarness(Seq(true, true))
+      h.run(required = 2) must beTrue
+      h.probes must beEqualTo(2)
+      h.sleeps.toList must beEqualTo(List(ConfirmMs))
+    }
+
+    "health check: a failure resets the success count" in {
+      val h = new ProbeHarness(Seq(true, false, true, true))
+      h.run(required = 2) must beTrue
+      h.probes must beEqualTo(4)
+      h.sleeps.toList must beEqualTo(List(ConfirmMs, RetryMs, ConfirmMs))
+    }
+
+    "health check: required = 1 swaps back on the first success without waiting" in {
+      val h = new ProbeHarness(Seq(false, true))
+      h.run(required = 1) must beTrue
+      h.probes must beEqualTo(2)
+      h.sleeps.toList must beEqualTo(List(RetryMs))
+    }
+
+    "health check: values below 1 are treated as 1" in {
+      val h = new ProbeHarness(Seq(true))
+      h.run(required = 0) must beTrue
+      h.probes must beEqualTo(1)
+    }
+
+    "health check: honour a configured count of 3" in {
+      val h = new ProbeHarness(Seq(true, true, true))
+      h.run(required = 3) must beTrue
+      h.probes must beEqualTo(3)
+      h.sleeps.toList must beEqualTo(List(ConfirmMs, ConfirmMs))
+    }
+
+    "health check: stop without marking healthy when asked to stop mid-confirmation" in {
+      val h = new ProbeHarness(Seq(true, true), stopAfterProbes = 1)
+      h.run(required = 2) must beFalse
+      h.probes must beEqualTo(1)
+      h.sleeps must beEmpty
+    }
+  }
+
+  private val ConfirmMs = 5000L
+  private val RetryMs   = 1000L
+
+  /** Feeds scripted probe outcomes to awaitConsecutiveSuccesses and records the sleeps it asks for. */
+  private class ProbeHarness(outcomes: Seq[Boolean], stopAfterProbes: Int = Int.MaxValue) {
+    private val it = outcomes.iterator
+    var probes     = 0
+    val sleeps     = ListBuffer.empty[Long]
+
+    def run(required: Int): Boolean =
+      KafkaSink.awaitConsecutiveSuccesses(
+        probe = () => {
+          probes += 1
+          if (it.hasNext && it.next()) Success(()) else Failure[Unit](new RuntimeException("down"))
+        },
+        requiredSuccesses = required,
+        confirmIntervalMs = ConfirmMs,
+        retryIntervalMs = RetryMs,
+        shouldStop = () => probes >= stopAfterProbes || (!it.hasNext && probes > outcomes.size),
+        sleep = ms => sleeps += ms
+      )
   }
 }

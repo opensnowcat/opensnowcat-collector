@@ -407,6 +407,9 @@ class KafkaSink(
 
   /** Background health check for Kafka recovery.
     * Checks if Kafka cluster is accessible using Admin API.
+    * Kafka is marked healthy only after `healthCheckRequiredSuccesses` consecutive successful checks
+    * spaced one metadata refresh interval (metadata.max.age.ms) apart, so the producer has had a chance
+    * to refresh its own metadata before traffic swaps back from SQS. A failure resets the count.
     * Runs until Kafka is marked healthy again.
     * Only runs if enableHealthCheck is true (to avoid duplicate checks for good/bad sinks).
     */
@@ -414,24 +417,39 @@ class KafkaSink(
     val healthRunnable = new Runnable {
       override def run(): Unit = {
         log.info(s"Starting background health check for Kafka cluster at ${kafkaConfig.brokers}")
-        val requestTimeoutMs = kafkaConfig.kafkaTimeouts.getOrElse(KafkaTimeouts()).requestTimeoutMs
+        val requestTimeoutMs  = kafkaConfig.kafkaTimeouts.getOrElse(KafkaTimeouts()).requestTimeoutMs
+        val required          = math.max(1, kafkaConfig.healthCheckRequiredSuccesses)
+        val confirmIntervalMs = KafkaSink.effectiveMetadataMaxAgeMs(kafkaConfig)
 
-        try while (!kafkaHealthy && !stopped)
-          Try {
-            // Lightweight cluster metadata query - checks if cluster is reachable
-            // Don't check specific topics - they may not exist yet (especially bad topic)
-            val clusterInfo = getOrCreateAdminClient().describeCluster()
-            clusterInfo.nodes().get(requestTimeoutMs.toLong, TimeUnit.MILLISECONDS)
-          } match {
-            case Success(_) =>
-              log.info(s"Kafka cluster at ${kafkaConfig.brokers} is accessible - marking Kafka as healthy")
-              kafkaHealthy = true
-            case Failure(err) =>
-              if (!stopped) {
-                log.warn(s"Kafka cluster at ${kafkaConfig.brokers} not accessible: ${err.getMessage}")
-                Thread.sleep(kafkaConfig.startupCheckInterval.toMillis)
-              }
-          } finally healthCheckLatch.countDown()
+        try {
+          val recovered = KafkaSink.awaitConsecutiveSuccesses(
+            probe = () =>
+              Try {
+                // Lightweight cluster metadata query - checks if cluster is reachable
+                // Don't check specific topics - they may not exist yet (especially bad topic)
+                val clusterInfo = getOrCreateAdminClient().describeCluster()
+                clusterInfo.nodes().get(requestTimeoutMs.toLong, TimeUnit.MILLISECONDS)
+                ()
+              },
+            requiredSuccesses = required,
+            confirmIntervalMs = confirmIntervalMs,
+            retryIntervalMs = kafkaConfig.startupCheckInterval.toMillis,
+            shouldStop = () => kafkaHealthy || stopped,
+            sleep = ms => Thread.sleep(ms),
+            onSuccess = n =>
+              if (n < required)
+                log.info(
+                  s"Kafka cluster at ${kafkaConfig.brokers} is accessible ($n/$required), confirming again in ${confirmIntervalMs}ms"
+                ),
+            onFailure = err => log.warn(s"Kafka cluster at ${kafkaConfig.brokers} not accessible: ${err.getMessage}")
+          )
+          if (recovered) {
+            log.info(
+              s"Kafka cluster at ${kafkaConfig.brokers} is accessible ($required/$required) - marking Kafka as healthy"
+            )
+            kafkaHealthy = true
+          }
+        } finally healthCheckLatch.countDown()
       }
     }
     executorService.execute(healthRunnable)
@@ -513,6 +531,45 @@ object KafkaSink {
     adminProps.setProperty(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaConfig.brokers)
     adminProps.setProperty(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG, timeouts.requestTimeoutMs.toString)
     adminProps
+  }
+
+  /** The metadata.max.age.ms the AdminClient (and producer) will actually use: kafkaTimeouts.metadataMaxAgeMs
+    * unless producerConf overrides it.
+    */
+  private[sinks] def effectiveMetadataMaxAgeMs(kafkaConfig: Kafka): Long =
+    Try(buildAdminClientProperties(kafkaConfig).getProperty(AdminClientConfig.METADATA_MAX_AGE_CONFIG).trim.toLong)
+      .getOrElse(kafkaConfig.kafkaTimeouts.getOrElse(KafkaTimeouts()).metadataMaxAgeMs.toLong)
+
+  /** Run `probe` until it succeeds `requiredSuccesses` times in a row (returns true) or `shouldStop`
+    * becomes true (returns false). Consecutive successes are `confirmIntervalMs` apart; a failure resets
+    * the count and waits `retryIntervalMs` before the next probe. Values below 1 are treated as 1.
+    */
+  private[sinks] def awaitConsecutiveSuccesses(
+    probe: () => Try[Unit],
+    requiredSuccesses: Int,
+    confirmIntervalMs: Long,
+    retryIntervalMs: Long,
+    shouldStop: () => Boolean,
+    sleep: Long => Unit,
+    onSuccess: Int => Unit = _ => (),
+    onFailure: Throwable => Unit = _ => ()
+  ): Boolean = {
+    val required  = math.max(1, requiredSuccesses)
+    var successes = 0
+    while (successes < required && !shouldStop())
+      probe() match {
+        case Success(_) =>
+          successes += 1
+          onSuccess(successes)
+          if (successes < required && !shouldStop()) sleep(confirmIntervalMs)
+        case Failure(err) =>
+          successes = 0
+          if (!shouldStop()) {
+            onFailure(err)
+            sleep(retryIntervalMs)
+          }
+      }
+    successes >= required
   }
 
   /** Create a KafkaSink and schedule its EventStorage flush task.

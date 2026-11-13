@@ -28,6 +28,8 @@ collector {
 
       startupCheckInterval = 5 seconds
 
+      healthCheckRequiredSuccesses = 3
+
       sqs {
         region = "us-east-1"
         threadPoolSize = 10

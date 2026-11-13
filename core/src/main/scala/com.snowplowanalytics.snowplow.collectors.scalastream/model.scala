@@ -148,7 +148,8 @@ package model {
     sqs: Option[Kafka.SQS] = None,
     kafkaTimeouts: Option[KafkaTimeouts] = None,
     backoffPolicy: KinesisBackoffPolicyConfig = KinesisBackoffPolicyConfig(500, 5000, 10),
-    startupCheckInterval: FiniteDuration = 5.seconds
+    startupCheckInterval: FiniteDuration = 5.seconds,
+    healthCheckRequiredSuccesses: Int = 2
   ) extends SinkConfig
 
   final case class KafkaTimeouts(

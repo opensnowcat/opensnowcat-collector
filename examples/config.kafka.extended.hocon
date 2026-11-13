@@ -289,6 +289,18 @@ collector {
       # Default: 5 seconds
       startupCheckInterval = 5 seconds
 
+      # Number of consecutive successful health checks required before Kafka is marked healthy again
+      # and traffic swaps back from SQS
+      # Checks after the first are spaced kafkaTimeouts.metadataMaxAgeMs apart (5 seconds by default),
+      # so the producer has refreshed its own metadata (e.g. dropped agents/brokers that went away)
+      # before it takes traffic again. A failed check resets the count.
+      # Trade-offs:
+      #   - Higher values: Fewer premature swaps back (Kafka marked healthy, then failing again)
+      #   - Lower values: Faster swap back to Kafka, less traffic on SQS
+      # 1 = swap back on the first successful check
+      # Default: 2
+      healthCheckRequiredSuccesses = 2
+
       # Optional. Maximum number of bytes that a single record can contain.
       # If a record is bigger, a size violation bad row is emitted instead
       # Default: 1 MB

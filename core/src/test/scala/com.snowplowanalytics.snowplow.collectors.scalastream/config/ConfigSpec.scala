@@ -184,7 +184,7 @@ abstract class ConfigSpec extends Specification {
         val (result, _) = stubCollector.parseConfig(argv)
         val expected = (app, suffix) match {
           case ("kafka", "extended") =>
-            // Extended Kafka config includes sqs configuration and kafkaTimeouts
+            // Extended Kafka config includes sqs configuration, kafkaTimeouts and healthCheckRequiredSuccesses
             configRefFactory(app).copy(
               streams = configRefFactory(app)
                 .streams
@@ -202,6 +202,7 @@ abstract class ConfigSpec extends Specification {
                           metadataMaxAgeMs = 5000
                         )
                       ),
+                      healthCheckRequiredSuccesses = 3,
                       sqs = Some(
                         Kafka.SQS(
                           region = "us-east-1",
